@@ -1,0 +1,402 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3F7668163A8EA2E49BD4CAFC /* Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A5AAFA9B4901CC00A0A729 /* Book.swift */; };
+		3ABA131783D7722A6DB454DB /* BookTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACBB9A6ED6CDA9B6D84F457 /* BookTextView.swift */; };
+		354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */; };
+		855BF73DFFEF33B95B8CA592 /* EtherealCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A32B3A4309838306A337B3F /* EtherealCover.swift */; };
+		D54C84765AEE6B4AF5DF6798 /* FloatingBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2304A255D751A4265CF0DF5A /* FloatingBook.swift */; };
+		77F7A461F891DC9A270AA8FB /* FolioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A6C5F0D62444E6A19AC8FC /* FolioApp.swift */; };
+		E901B1D24CEE59314EB04E27 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29708C773ED4B3A59C08F4D1 /* Library.swift */; };
+		C99A25089100598DFADF8996 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B7E55A32B204BAC74FFBCD /* LibraryView.swift */; };
+		8731729D0AF65BAA18357437 /* ReaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3180B04382DB72E0EE5A64 /* ReaderModel.swift */; };
+		9206C78F7DB009B2FEC6DE80 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95489970A975141CB513ABD6 /* ReaderView.swift */; };
+		4299A148BF16CB908C21BE19 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47786AA2CDCF426B4D1F83E9 /* SettingsView.swift */; };
+		6AE362BE7FE1FC710332665B /* Sky.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72147637645EA7AF5F467B5 /* Sky.swift */; };
+		3E8EA8AEEDC2393A9F503B11 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5272A5EAEBDD6ADABE14524 /* Theme.swift */; };
+		9CEAB1EBE3C51220EE671996 /* book.c in Sources */ = {isa = PBXBuildFile; fileRef = 9728A89CDA6045183F59BBA0 /* book.c */; };
+		124189A0DDB720FA72BFB0C2 /* epub.c in Sources */ = {isa = PBXBuildFile; fileRef = 4DEDBEECEAFAC3E8E5CFEEE8 /* epub.c */; };
+		7F121B5780785D2025C6322F /* markup.c in Sources */ = {isa = PBXBuildFile; fileRef = 4216AC6CBDFF7D5C221F35F0 /* markup.c */; };
+		858ED619983184D55D1D57FF /* search.c in Sources */ = {isa = PBXBuildFile; fileRef = A461F27521C0B9FDF49521F2 /* search.c */; };
+		49685FF1E7CFEC132F451153 /* sky.c in Sources */ = {isa = PBXBuildFile; fileRef = D054FAA264139F0F9B753A7C /* sky.c */; };
+		FCFC5FCAD370742B6378D7CE /* skydata.c in Sources */ = {isa = PBXBuildFile; fileRef = 57D5E61CB5F9A921C684F48B /* skydata.c */; };
+		7FABB576DBEBE2DB2376A5CA /* text.c in Sources */ = {isa = PBXBuildFile; fileRef = A704B1EE55B2AD413F6BC519 /* text.c */; };
+		D02A3BCC65799385CC531FF6 /* util.c in Sources */ = {isa = PBXBuildFile; fileRef = DAAC7FFBD567E01131F0448A /* util.c */; };
+		86AC12DD49DCEE649863F324 /* zip.c in Sources */ = {isa = PBXBuildFile; fileRef = 6B6A579420E7B3FF37C8F1F5 /* zip.c */; };
+		55A47F71B04695F9DAC1D397 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 051D082079F07DDF50C187DF /* AppIcon.icns */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		59A5AAFA9B4901CC00A0A729 /* Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Book.swift; sourceTree = "<group>"; };
+		9ACBB9A6ED6CDA9B6D84F457 /* BookTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookTextView.swift; sourceTree = "<group>"; };
+		46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPainter.swift; sourceTree = "<group>"; };
+		4A32B3A4309838306A337B3F /* EtherealCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherealCover.swift; sourceTree = "<group>"; };
+		2304A255D751A4265CF0DF5A /* FloatingBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingBook.swift; sourceTree = "<group>"; };
+		0C7812EBB5D03E97067B3343 /* Folio-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Folio-Bridging-Header.h"; sourceTree = "<group>"; };
+		66A6C5F0D62444E6A19AC8FC /* FolioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolioApp.swift; sourceTree = "<group>"; };
+		29708C773ED4B3A59C08F4D1 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
+		56B7E55A32B204BAC74FFBCD /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		AC3180B04382DB72E0EE5A64 /* ReaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderModel.swift; sourceTree = "<group>"; };
+		95489970A975141CB513ABD6 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
+		47786AA2CDCF426B4D1F83E9 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C72147637645EA7AF5F467B5 /* Sky.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sky.swift; sourceTree = "<group>"; };
+		D5272A5EAEBDD6ADABE14524 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		9728A89CDA6045183F59BBA0 /* book.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = book.c; sourceTree = "<group>"; };
+		4DEDBEECEAFAC3E8E5CFEEE8 /* epub.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = epub.c; sourceTree = "<group>"; };
+		4216AC6CBDFF7D5C221F35F0 /* markup.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = markup.c; sourceTree = "<group>"; };
+		5DF8E3D038FF072F6187B05C /* rd_internal.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = rd_internal.h; sourceTree = "<group>"; };
+		41820289EC547DB6E8DD8FFA /* rdtool.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = rdtool.c; sourceTree = "<group>"; };
+		8D4787251E65EFA625225CC7 /* reader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = reader.h; sourceTree = "<group>"; };
+		A461F27521C0B9FDF49521F2 /* search.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = search.c; sourceTree = "<group>"; };
+		D054FAA264139F0F9B753A7C /* sky.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sky.c; sourceTree = "<group>"; };
+		4B712EF48B604E21D9E50950 /* sky.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sky.h; sourceTree = "<group>"; };
+		57D5E61CB5F9A921C684F48B /* skydata.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = skydata.c; sourceTree = "<group>"; };
+		A704B1EE55B2AD413F6BC519 /* text.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = text.c; sourceTree = "<group>"; };
+		DAAC7FFBD567E01131F0448A /* util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = util.c; sourceTree = "<group>"; };
+		6B6A579420E7B3FF37C8F1F5 /* zip.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = zip.c; sourceTree = "<group>"; };
+		051D082079F07DDF50C187DF /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		2272083354F0CA1997F2E1BD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		25D51052363283F247E6F323 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		28347EFAE306F5FD3AEC2C0D /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
+		68493D0A46971F219CB00B99 /* Folio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Folio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		37E9078122BA67383CE3802E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2B4CC3A6F411736E78D0A39F = {
+			isa = PBXGroup;
+			children = (
+				37081418B0702A6B9AE78F8D /* App */,
+				25B4A9D08920F6B57530E1F2 /* core */,
+				7FCF7E0698A003DE740BECB5 /* Resources */,
+				25D51052363283F247E6F323 /* README.md */,
+				28347EFAE306F5FD3AEC2C0D /* build.sh */,
+				686718D6D6D70FEABDF31C19 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		37081418B0702A6B9AE78F8D /* App */ = {
+			isa = PBXGroup;
+			children = (
+				59A5AAFA9B4901CC00A0A729 /* Book.swift */,
+				9ACBB9A6ED6CDA9B6D84F457 /* BookTextView.swift */,
+				46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */,
+				4A32B3A4309838306A337B3F /* EtherealCover.swift */,
+				2304A255D751A4265CF0DF5A /* FloatingBook.swift */,
+				0C7812EBB5D03E97067B3343 /* Folio-Bridging-Header.h */,
+				66A6C5F0D62444E6A19AC8FC /* FolioApp.swift */,
+				29708C773ED4B3A59C08F4D1 /* Library.swift */,
+				56B7E55A32B204BAC74FFBCD /* LibraryView.swift */,
+				AC3180B04382DB72E0EE5A64 /* ReaderModel.swift */,
+				95489970A975141CB513ABD6 /* ReaderView.swift */,
+				47786AA2CDCF426B4D1F83E9 /* SettingsView.swift */,
+				C72147637645EA7AF5F467B5 /* Sky.swift */,
+				D5272A5EAEBDD6ADABE14524 /* Theme.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		25B4A9D08920F6B57530E1F2 /* core */ = {
+			isa = PBXGroup;
+			children = (
+				9728A89CDA6045183F59BBA0 /* book.c */,
+				4DEDBEECEAFAC3E8E5CFEEE8 /* epub.c */,
+				4216AC6CBDFF7D5C221F35F0 /* markup.c */,
+				5DF8E3D038FF072F6187B05C /* rd_internal.h */,
+				41820289EC547DB6E8DD8FFA /* rdtool.c */,
+				8D4787251E65EFA625225CC7 /* reader.h */,
+				A461F27521C0B9FDF49521F2 /* search.c */,
+				D054FAA264139F0F9B753A7C /* sky.c */,
+				4B712EF48B604E21D9E50950 /* sky.h */,
+				57D5E61CB5F9A921C684F48B /* skydata.c */,
+				A704B1EE55B2AD413F6BC519 /* text.c */,
+				DAAC7FFBD567E01131F0448A /* util.c */,
+				6B6A579420E7B3FF37C8F1F5 /* zip.c */,
+			);
+			path = core;
+			sourceTree = "<group>";
+		};
+		7FCF7E0698A003DE740BECB5 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				051D082079F07DDF50C187DF /* AppIcon.icns */,
+				2272083354F0CA1997F2E1BD /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		686718D6D6D70FEABDF31C19 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				68493D0A46971F219CB00B99 /* Folio.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1E8E754B020BA4EFF8697CFD /* Folio */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1BA33DEE8DB044507D5C58F2 /* Build configuration list for PBXNativeTarget "Folio" */;
+			buildPhases = (
+				8E1089C4ECB7B2B68211A837 /* Sources */,
+				37E9078122BA67383CE3802E /* Frameworks */,
+				076A6F9B21AB8892FA612AA2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Folio;
+			productName = Folio;
+			productReference = 68493D0A46971F219CB00B99 /* Folio.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C46C34BD9B9BADBFAA2EF2FE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					1E8E754B020BA4EFF8697CFD = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = AA5ECCE38E020508F60C3AF2 /* Build configuration list for PBXProject "Folio" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 2B4CC3A6F411736E78D0A39F;
+			productRefGroup = 686718D6D6D70FEABDF31C19 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1E8E754B020BA4EFF8697CFD /* Folio */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		076A6F9B21AB8892FA612AA2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				55A47F71B04695F9DAC1D397 /* AppIcon.icns in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8E1089C4ECB7B2B68211A837 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F7668163A8EA2E49BD4CAFC /* Book.swift in Sources */,
+				3ABA131783D7722A6DB454DB /* BookTextView.swift in Sources */,
+				354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */,
+				855BF73DFFEF33B95B8CA592 /* EtherealCover.swift in Sources */,
+				D54C84765AEE6B4AF5DF6798 /* FloatingBook.swift in Sources */,
+				77F7A461F891DC9A270AA8FB /* FolioApp.swift in Sources */,
+				E901B1D24CEE59314EB04E27 /* Library.swift in Sources */,
+				C99A25089100598DFADF8996 /* LibraryView.swift in Sources */,
+				8731729D0AF65BAA18357437 /* ReaderModel.swift in Sources */,
+				9206C78F7DB009B2FEC6DE80 /* ReaderView.swift in Sources */,
+				4299A148BF16CB908C21BE19 /* SettingsView.swift in Sources */,
+				6AE362BE7FE1FC710332665B /* Sky.swift in Sources */,
+				3E8EA8AEEDC2393A9F503B11 /* Theme.swift in Sources */,
+				9CEAB1EBE3C51220EE671996 /* book.c in Sources */,
+				124189A0DDB720FA72BFB0C2 /* epub.c in Sources */,
+				7F121B5780785D2025C6322F /* markup.c in Sources */,
+				858ED619983184D55D1D57FF /* search.c in Sources */,
+				49685FF1E7CFEC132F451153 /* sky.c in Sources */,
+				FCFC5FCAD370742B6378D7CE /* skydata.c in Sources */,
+				7FABB576DBEBE2DB2376A5CA /* text.c in Sources */,
+				D02A3BCC65799385CC531FF6 /* util.c in Sources */,
+				86AC12DD49DCEE649863F324 /* zip.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		D9A621C8D74461E33D767930 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		3FB7B4C75146004B10A14D56 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		93E18213E764257A76D0DB5E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = "$(PROJECT_DIR)/build/$(CONFIGURATION)";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fred.folio;
+				PRODUCT_NAME = Folio;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "App/Folio-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		43B90740A1E699AA31C1799A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = "$(PROJECT_DIR)/build/$(CONFIGURATION)";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.fred.folio;
+				PRODUCT_NAME = Folio;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_OBJC_BRIDGING_HEADER = "App/Folio-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA5ECCE38E020508F60C3AF2 /* Build configuration list for PBXProject "Folio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D9A621C8D74461E33D767930 /* Debug */,
+				3FB7B4C75146004B10A14D56 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1BA33DEE8DB044507D5C58F2 /* Build configuration list for PBXNativeTarget "Folio" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93E18213E764257A76D0DB5E /* Debug */,
+				43B90740A1E699AA31C1799A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C46C34BD9B9BADBFAA2EF2FE /* Project object */;
+}
