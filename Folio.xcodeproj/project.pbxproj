@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		3F7668163A8EA2E49BD4CAFC /* Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59A5AAFA9B4901CC00A0A729 /* Book.swift */; };
 		3ABA131783D7722A6DB454DB /* BookTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACBB9A6ED6CDA9B6D84F457 /* BookTextView.swift */; };
+		A1C0FE0000000000000000B1 /* CoverMetal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000000A1 /* CoverMetal.swift */; };
+		A1C0FE0000000000000000B2 /* CoverScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000000A2 /* CoverScene.swift */; };
+		A1C0FE0000000000000000B3 /* CoverShaders.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000000A3 /* CoverShaders.swift */; };
 		354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */; };
 		855BF73DFFEF33B95B8CA592 /* EtherealCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A32B3A4309838306A337B3F /* EtherealCover.swift */; };
 		D54C84765AEE6B4AF5DF6798 /* FloatingBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2304A255D751A4265CF0DF5A /* FloatingBook.swift */; };
@@ -35,6 +38,9 @@
 /* Begin PBXFileReference section */
 		59A5AAFA9B4901CC00A0A729 /* Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Book.swift; sourceTree = "<group>"; };
 		9ACBB9A6ED6CDA9B6D84F457 /* BookTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookTextView.swift; sourceTree = "<group>"; };
+		A1C0FE0000000000000000A1 /* CoverMetal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverMetal.swift; sourceTree = "<group>"; };
+		A1C0FE0000000000000000A2 /* CoverScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverScene.swift; sourceTree = "<group>"; };
+		A1C0FE0000000000000000A3 /* CoverShaders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverShaders.swift; sourceTree = "<group>"; };
 		46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPainter.swift; sourceTree = "<group>"; };
 		4A32B3A4309838306A337B3F /* EtherealCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherealCover.swift; sourceTree = "<group>"; };
 		2304A255D751A4265CF0DF5A /* FloatingBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingBook.swift; sourceTree = "<group>"; };
@@ -95,6 +101,9 @@
 			children = (
 				59A5AAFA9B4901CC00A0A729 /* Book.swift */,
 				9ACBB9A6ED6CDA9B6D84F457 /* BookTextView.swift */,
+				A1C0FE0000000000000000A1 /* CoverMetal.swift */,
+				A1C0FE0000000000000000A2 /* CoverScene.swift */,
+				A1C0FE0000000000000000A3 /* CoverShaders.swift */,
 				46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */,
 				4A32B3A4309838306A337B3F /* EtherealCover.swift */,
 				2304A255D751A4265CF0DF5A /* FloatingBook.swift */,
@@ -219,6 +228,9 @@
 			files = (
 				3F7668163A8EA2E49BD4CAFC /* Book.swift in Sources */,
 				3ABA131783D7722A6DB454DB /* BookTextView.swift in Sources */,
+				A1C0FE0000000000000000B1 /* CoverMetal.swift in Sources */,
+				A1C0FE0000000000000000B2 /* CoverScene.swift in Sources */,
+				A1C0FE0000000000000000B3 /* CoverShaders.swift in Sources */,
 				354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */,
 				855BF73DFFEF33B95B8CA592 /* EtherealCover.swift in Sources */,
 				D54C84765AEE6B4AF5DF6798 /* FloatingBook.swift in Sources */,

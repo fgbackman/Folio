@@ -297,16 +297,11 @@ struct EtherealCover: View {
             ZStack {
                 StaticSky(design: d).equatable()
 
-                TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !(awake && (moving || hovering)))) { timeline in
-                    let now = timeline.date.timeIntervalSince(CoverClock.start)
-                    Canvas { ctx, size in
-                        d.drawAnimated(&ctx, size: size, t: moving ? now : 0, clock: now, sky: SkyNow.current,
-                                       kp: SpaceWeather.shared.kp, progress: progress, bookmarks: bookmarks,
-                                       hover: box.info(now))
-                    }
+                if CoverRenderer.shared != nil {
+                    CoverSky(design: d, progress: progress, bookmarks: bookmarks, moving: moving, awake: awake,
+                             hovering: hovering, hoverBox: box)
+                        .allowsHitTesting(false)
                 }
-                .drawingGroup()          // rasterise the moving sky on the GPU
-                .allowsHitTesting(false)
 
                 RadialGradient(colors: [CoverPalette.rgb(p.bottom, 0), CoverPalette.rgb(p.bottom, p.dark ? 0.55 : 0.30)],
                                center: UnitPoint(x: 0.5, y: 0.42), startRadius: w * 0.35, endRadius: w * 1.05)

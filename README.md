@@ -38,7 +38,7 @@ SIGN_ID="Developer ID Application: Your Name (TEAMID)" ./build.sh --install
 - **Your reading progress as an orbit**: a real planet or Halley's Comet on its true ellipse; Kepler's second law decides where you are, so equal reading sweeps equal areas.
 - **Hover a cover** and the pointer becomes a gravitational lens (the point-mass lens equation bends the stars into arcs and an Einstein ring), with a caption naming what's under it — a star's distance and the year its light left, a nebula's story, tonight's showers and planets.
 
-The covers animate slowly; turn this off under Settings › Library › Animate covers (they also stay still when Reduce Motion is on). Type in the library field to filter; press Return to search inside every book.
+The covers animate slowly, drawn on the GPU with Metal; they pause whenever Folio isn't the front app. Turn the animation off under Settings › Library › Animate covers (they also stay still when Reduce Motion is on). Type in the library field to filter; press Return to search inside every book.
 
 **Search (⌘F):** full-text search across the whole book, ignoring case, accents (é = e, ß = ss, Greek and Cyrillic too), curly quotes, dashes and ligatures. Options: Aa (exact case and accents), Whole words, All words (every word in the same paragraph, any order). Results are grouped by chapter and highlighted in the text. ⌘G / ⇧⌘G step through matches.
 
@@ -68,7 +68,9 @@ core/      C engine — zip + inflate, XML/HTML tokenizer, EPUB/text/Markdown lo
 core/sky.c Sky engine — Sun, Moon, planets (JPL elements), meteor showers, eclipses, Kepler's equation;
            skydata.c holds the star, constellation, Milky Way and deep-sky data
 App/       SwiftUI app — Book.swift wraps the C API; Sky.swift wraps the sky engine;
-           EtherealCover.swift and CoverPainter.swift paint the covers
+           EtherealCover.swift and CoverPainter.swift paint the still part of the covers;
+           CoverScene.swift lays out what moves, and CoverMetal.swift and CoverShaders.swift
+           draw it on the GPU (the shaders are compiled at launch, so there is no Metal build step)
 Resources/ Info.plist, AppIcon.icns
 build.sh   clang + swiftc build into build/Folio.app
 ```
