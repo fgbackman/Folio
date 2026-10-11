@@ -76,6 +76,16 @@ struct PhoneReader: View {
         .sheet(item: $model.lookUp) { LookUpView(term: $0) }
         // choosing a chapter, a result or a bookmark on the sheet goes there and puts the sheet away
         .onChange(of: model.jumpToken) { _, _ in showContents = false }
+        #if DEBUG
+        .task {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            switch UserDefaults.standard.string(forKey: "debugShow") {
+            case "contents": showContents = true
+            case "appearance": showAppearance = true
+            default: break
+            }
+        }
+        #endif
     }
 
     private var statusBar: some View {

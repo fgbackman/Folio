@@ -195,7 +195,9 @@ struct DiscoverView: View {
             Divider()
             results
         }
+        #if os(macOS)
         .frame(minWidth: 720, idealWidth: 780, minHeight: 520, idealHeight: 640)
+        #endif
         .onAppear { focused = true }
     }
 

@@ -275,7 +275,9 @@ struct NoteEditor: View {
             }
         }
         .padding(18)
+        #if os(macOS)
         .frame(width: 420)
+        #endif
         .onAppear { text = mark.note ?? ""; focused = true }
     }
 }

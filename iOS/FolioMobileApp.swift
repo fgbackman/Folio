@@ -12,7 +12,15 @@ struct FolioMobileApp: App {
         Task {
             await Shelf.sweep()
             #if DEBUG
-            // For trying the app in the simulator:  simctl launch <device> com.fred.folio -debugOpen <part of a title>
+            // For trying the app in the simulator, where nothing can be tapped from a script:
+            //   simctl launch <device> com.fred.folio -debugOpen <part of a title> [-debugChapter n] [-debugShow contents|appearance]
+            //   simctl launch <device> com.fred.folio -debugShow cover|discover|stats
+            switch UserDefaults.standard.string(forKey: "debugShow") {
+            case "cover": ReaderModel.shared.frontCover = Library.shared.entries.first
+            case "discover": ReaderModel.shared.showDiscover = true
+            case "stats": ReaderModel.shared.showStats = true
+            default: break
+            }
             if let wanted = UserDefaults.standard.string(forKey: "debugOpen"),
                let entry = Library.shared.entries.first(where: { $0.title.localizedCaseInsensitiveContains(wanted) }) {
                 let chapter = UserDefaults.standard.integer(forKey: "debugChapter")

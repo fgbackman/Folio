@@ -491,7 +491,7 @@ struct CoverGallery: View {
                     Text(entry.title).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
-                TextField("Constellation, asterism or object", text: $filter).textFieldStyle(.roundedBorder).frame(width: 240)
+                TextField("Constellation, asterism or object", text: $filter).textFieldStyle(.roundedBorder).frame(maxWidth: 240)
                 Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding(18)
@@ -521,6 +521,8 @@ struct CoverGallery: View {
                 .padding(18)
             }
         }
+        #if os(macOS)
         .frame(minWidth: 720, idealWidth: 820, minHeight: 540, idealHeight: 680)
+        #endif
     }
 }

@@ -114,7 +114,7 @@ struct StatsView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    HStack(spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 12)], spacing: 12) {
                         figure("Today", StatsView.time(today.seconds))
                         figure("This week", StatsView.time(week))
                         figure("Streak", "\(log.streak) day\(log.streak == 1 ? "" : "s")")
@@ -161,7 +161,9 @@ struct StatsView: View {
                 .padding(20)
             }
         }
+        #if os(macOS)
         .frame(width: 640, height: 560)
+        #endif
     }
 
     private func figure(_ label: String, _ value: String) -> some View {
