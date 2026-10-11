@@ -23,6 +23,7 @@
 		A1C0FE000000000000000AB0 /* Spotlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE000000000000000AA0 /* Spotlight.swift */; };
 		A1C0FE000000000000000BB0 /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE000000000000000BA0 /* Stats.swift */; };
 		A1C0FE000000000000000CB0 /* Sync.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE000000000000000CA0 /* Sync.swift */; };
+		A1C0FE000000000000000DB0 /* OwnCovers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE000000000000000DA0 /* OwnCovers.swift */; };
 		A1C0FE0000000000000000B3 /* CoverShaders.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000000A3 /* CoverShaders.swift */; };
 		354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */; };
 		855BF73DFFEF33B95B8CA592 /* EtherealCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A32B3A4309838306A337B3F /* EtherealCover.swift */; };
@@ -65,6 +66,7 @@
 		A1C0FE000000000000000AA0 /* Spotlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Spotlight.swift; sourceTree = "<group>"; };
 		A1C0FE000000000000000BA0 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
 		A1C0FE000000000000000CA0 /* Sync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sync.swift; sourceTree = "<group>"; };
+		A1C0FE000000000000000DA0 /* OwnCovers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OwnCovers.swift; sourceTree = "<group>"; };
 		A1C0FE0000000000000000A3 /* CoverShaders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverShaders.swift; sourceTree = "<group>"; };
 		46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPainter.swift; sourceTree = "<group>"; };
 		4A32B3A4309838306A337B3F /* EtherealCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherealCover.swift; sourceTree = "<group>"; };
@@ -130,6 +132,7 @@
 				A1C0FE0000000000000000A1 /* CoverMetal.swift */,
 				A1C0FE0000000000000000A2 /* CoverScene.swift */,
 				A1C0FE0000000000000000A3 /* CoverShaders.swift */,
+				A1C0FE000000000000000DA0 /* OwnCovers.swift */,
 				A1C0FE000000000000000CA0 /* Sync.swift */,
 				A1C0FE000000000000000BA0 /* Stats.swift */,
 				A1C0FE000000000000000AA0 /* Spotlight.swift */,
@@ -270,6 +273,7 @@
 				A1C0FE0000000000000000B1 /* CoverMetal.swift in Sources */,
 				A1C0FE0000000000000000B2 /* CoverScene.swift in Sources */,
 				A1C0FE0000000000000000B3 /* CoverShaders.swift in Sources */,
+				A1C0FE000000000000000DB0 /* OwnCovers.swift in Sources */,
 				A1C0FE000000000000000CB0 /* Sync.swift in Sources */,
 				A1C0FE000000000000000BB0 /* Stats.swift in Sources */,
 				A1C0FE000000000000000AB0 /* Spotlight.swift in Sources */,

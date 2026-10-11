@@ -22,6 +22,7 @@ enum Keys {
     static let syncShelf = "syncShelf"
     static let finderCovers = "finderCovers"
     static let pdfAsText = "pdfAsText"
+    static let ownCovers = "ownCovers"
 }
 
 enum Theme: String, CaseIterable, Identifiable {

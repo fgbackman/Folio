@@ -11,6 +11,7 @@ struct LibraryView: View {
     @State private var dropTargeted = false
     @State private var tag: String?
     @AppStorage(Keys.pdfAsText) private var pdfAsText = false
+    @AppStorage(Keys.ownCovers) private var ownCovers = false
     @AppStorage(Keys.shelfOrder) private var orderName = Library.Order.recent.rawValue
 
     private var order: Library.Order { Library.Order(rawValue: orderName) ?? .recent }
@@ -79,6 +80,13 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary).padding(.horizontal, 10)
             }
             if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
+            ToolbarItem(placement: .primaryAction) {
+                Button { ownCovers.toggle() } label: {
+                    Label(ownCovers ? "Show Sky Covers" : "Show Original Covers", systemImage: ownCovers ? "moon.stars" : "photo")
+                }
+                .help(ownCovers ? "Showing the covers the books came with. Click for the sky covers."
+                                : "Showing the sky covers. Click for the covers the books came with.")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button { pdfAsText.toggle(); library.setAllOriginal(!pdfAsText) } label: {
                     Label(pdfAsText ? "PDFs Open as Text" : "PDFs Open as Pages", systemImage: pdfAsText ? "text.alignleft" : "doc.richtext")
@@ -213,8 +221,7 @@ struct BookCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            EtherealCover(title: entry.title, author: entry.author, sky: entry.sky, progress: entry.progress,
-                          bookmarks: entry.bookmarks.count)
+            ShelfCover(entry: entry)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .background {
@@ -320,8 +327,7 @@ struct ContinueRow: View {
 
     private func card(_ e: LibraryEntry) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            EtherealCover(title: e.title, author: e.author, sky: e.sky, progress: e.progress,
-                          bookmarks: e.bookmarks.count, animated: false)
+            ShelfCover(entry: e, animated: false)
                 .frame(width: 62)
                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
