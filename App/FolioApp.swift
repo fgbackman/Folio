@@ -74,6 +74,8 @@ struct FolioCommands: Commands {
         CommandGroup(replacing: .newItem) {
             Button("Open Book…") { model.showMainWindow(); model.showImporter = true }
                 .keyboardShortcut("o")
+            Button("Find Free Books…") { model.closeBook(); model.showMainWindow(); model.showDiscover = true }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
         }
         CommandGroup(after: .textEditing) {
             Button("Find in Book") { model.showMainWindowIfNeeded(); model.focusSearch() }

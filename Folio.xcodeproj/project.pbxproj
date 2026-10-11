@@ -13,6 +13,8 @@
 		A1C0FE0000000000000000B2 /* CoverScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000000A2 /* CoverScene.swift */; };
 		A1C0FE0000000000000001B0 /* PDFBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000001A0 /* PDFBook.swift */; };
 		A1C0FE0000000000000002B0 /* OriginalPages.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000002A0 /* OriginalPages.swift */; };
+		A1C0FE0000000000000003B0 /* OpenLibraries.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000003A0 /* OpenLibraries.swift */; };
+		A1C0FE0000000000000004B0 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000004A0 /* DiscoverView.swift */; };
 		A1C0FE0000000000000000B3 /* CoverShaders.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000000A3 /* CoverShaders.swift */; };
 		354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */; };
 		855BF73DFFEF33B95B8CA592 /* EtherealCover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A32B3A4309838306A337B3F /* EtherealCover.swift */; };
@@ -44,6 +46,8 @@
 		A1C0FE0000000000000000A2 /* CoverScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverScene.swift; sourceTree = "<group>"; };
 		A1C0FE0000000000000001A0 /* PDFBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFBook.swift; sourceTree = "<group>"; };
 		A1C0FE0000000000000002A0 /* OriginalPages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginalPages.swift; sourceTree = "<group>"; };
+		A1C0FE0000000000000003A0 /* OpenLibraries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenLibraries.swift; sourceTree = "<group>"; };
+		A1C0FE0000000000000004A0 /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
 		A1C0FE0000000000000000A3 /* CoverShaders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverShaders.swift; sourceTree = "<group>"; };
 		46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPainter.swift; sourceTree = "<group>"; };
 		4A32B3A4309838306A337B3F /* EtherealCover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EtherealCover.swift; sourceTree = "<group>"; };
@@ -108,6 +112,8 @@
 				A1C0FE0000000000000000A1 /* CoverMetal.swift */,
 				A1C0FE0000000000000000A2 /* CoverScene.swift */,
 				A1C0FE0000000000000000A3 /* CoverShaders.swift */,
+				A1C0FE0000000000000004A0 /* DiscoverView.swift */,
+				A1C0FE0000000000000003A0 /* OpenLibraries.swift */,
 				A1C0FE0000000000000002A0 /* OriginalPages.swift */,
 				A1C0FE0000000000000001A0 /* PDFBook.swift */,
 				46CEF9A9A3EB795BFCDD6788 /* CoverPainter.swift */,
@@ -237,6 +243,8 @@
 				A1C0FE0000000000000000B1 /* CoverMetal.swift in Sources */,
 				A1C0FE0000000000000000B2 /* CoverScene.swift in Sources */,
 				A1C0FE0000000000000000B3 /* CoverShaders.swift in Sources */,
+				A1C0FE0000000000000004B0 /* DiscoverView.swift in Sources */,
+				A1C0FE0000000000000003B0 /* OpenLibraries.swift in Sources */,
 				A1C0FE0000000000000002B0 /* OriginalPages.swift in Sources */,
 				A1C0FE0000000000000001B0 /* PDFBook.swift in Sources */,
 				354978D42DF762C190AAAB6E /* CoverPainter.swift in Sources */,

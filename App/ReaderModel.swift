@@ -36,6 +36,7 @@ final class ReaderModel: ObservableObject {
     @Published private(set) var isFloating = false
     @Published var sidebarTab: SidebarTab = .contents
     @Published var showImporter = false
+    @Published var showDiscover = false
     @Published private(set) var searchFocusToken = UUID()
 
     // Search

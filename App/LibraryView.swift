@@ -28,6 +28,7 @@ struct LibraryView: View {
                         Text("Drop EPUB, PDF, text, Markdown or HTML books here, or press ⌘O.")
                     } actions: {
                         Button("Open a Book…") { model.showImporter = true }.buttonStyle(.borderedProminent)
+                        Button("Find Free Books…") { model.showDiscover = true }
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
@@ -52,7 +53,14 @@ struct LibraryView: View {
             return !urls.isEmpty
         } isTargeted: { dropTargeted = $0 }
         .navigationTitle("Library")
+        .sheet(isPresented: $model.showDiscover) {
+            DiscoverView().environmentObject(library).environmentObject(model)
+        }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { model.showDiscover = true } label: { Label("Find Free Books", systemImage: "globe") }
+                    .help("Search the open libraries (⇧⌘O)")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button { model.showImporter = true } label: { Label("Add Books", systemImage: "plus") }.help("Add books (⌘O)")
             }

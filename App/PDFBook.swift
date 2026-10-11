@@ -36,7 +36,7 @@ struct PDFSource: Sendable {
 
 enum PDFImport {
     /// Bump when the conversion changes, so old conversions are redone.
-    private static let version = 4
+    private static let version = 5
 
     private struct Sidecar: Codable {
         let version: Int
@@ -75,7 +75,10 @@ enum PDFImport {
 
         guard let doc = PDFDocument(url: url) else { throw Failure.unreadable }
         if doc.isLocked { throw Failure.locked }
-        let result = Reflow(doc, fallbackTitle: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")).run()
+        var reflow = Reflow(doc, fallbackTitle: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "))
+        reflow.knownTitle = BookHints.title(of: url)
+        reflow.knownAuthor = BookHints.author(of: url)
+        let result = reflow.run()
         try result.html.write(to: html, atomically: true, encoding: .utf8)
         let s = Sidecar(version: version, pageStarts: result.pageStarts, textLength: result.textLength, hasText: result.hasText)
         try JSONEncoder().encode(s).write(to: side, options: .atomic)
@@ -96,6 +99,9 @@ private struct Reflow {
 
     let doc: PDFDocument
     let fallbackTitle: String
+    /// From the catalogue the file was downloaded from; better than what PDFs say of themselves.
+    var knownTitle: String?
+    var knownAuthor: String?
 
     init(_ doc: PDFDocument, fallbackTitle: String) {
         self.doc = doc
@@ -126,7 +132,8 @@ private struct Reflow {
         let attrs = doc.documentAttributes ?? [:]
         var title = Reflow.clean(attrs[PDFDocumentAttribute.titleAttribute] as? String ?? "")
         if title.count < 2 || title.lowercased().hasPrefix("untitled") || title.lowercased().hasPrefix("microsoft word") { title = fallbackTitle }
-        let author = Reflow.clean(attrs[PDFDocumentAttribute.authorAttribute] as? String ?? "")
+        if let known = knownTitle, !known.isEmpty { title = known }
+        let author = knownAuthor ?? Reflow.clean(attrs[PDFDocumentAttribute.authorAttribute] as? String ?? "")
         var head = "<html><head><title>\(Reflow.escape(title))</title>"
         if !author.isEmpty { head += "<meta name=\"author\" content=\"\(Reflow.escape(author))\">" }
         head += "</head><body>\n"
@@ -299,8 +306,9 @@ private struct Reflow {
 
                 let words = line.text.split(separator: " ").count
                 let numeric = line.text.unicodeScalars.allSatisfy { !CharacterSet.letters.contains($0) }
-                let big = line.box.height >= body * 1.22 && words <= 14 && !numeric
-                let named = Reflow.chapterLike(line.text)
+                let letters = line.text.unicodeScalars.filter { CharacterSet.letters.contains($0) }.count
+                let big = line.box.height >= body * 1.22 && words <= 14 && !numeric && letters >= 3
+                let named = line.box.width < width * 0.7 && Reflow.chapterLike(line.text)
                 if marks.isEmpty && (big || named) {
                     flushPara()
                     if !heading.isEmpty, let a = prev, a.box.minY - line.box.maxY > body * 2.5 { flushHeading() }
@@ -338,8 +346,9 @@ private struct Reflow {
 
     /// "Chapter 4", "PART TWO", "Book III": a heading even when it is set no larger than the text.
     private static func chapterLike(_ s: String) -> Bool {
+        guard let first = s.first, first.isUppercase, let last = s.last, !",;-".contains(last) else { return false }
         let words = s.lowercased().split(separator: " ")
-        guard words.count >= 2, words.count <= 9, ["chapter", "part", "book"].contains(String(words[0])) else { return false }
+        guard words.count >= 2, words.count <= 8, ["chapter", "part", "book"].contains(String(words[0])) else { return false }
         let n = words[1].trimmingCharacters(in: CharacterSet(charactersIn: ".:,—–-"))
         if n.isEmpty { return false }
         if n.allSatisfy(\.isNumber) { return true }
