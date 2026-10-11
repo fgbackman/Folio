@@ -10,6 +10,7 @@ struct LibraryView: View {
     @State private var shelfQuery = ""
     @State private var dropTargeted = false
     @State private var tag: String?
+    @AppStorage(Keys.pdfAsText) private var pdfAsText = false
     @AppStorage(Keys.shelfOrder) private var orderName = Library.Order.recent.rawValue
 
     private var order: Library.Order { Library.Order(rawValue: orderName) ?? .recent }
@@ -78,6 +79,13 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary).padding(.horizontal, 10)
             }
             if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
+            ToolbarItem(placement: .primaryAction) {
+                Button { pdfAsText.toggle(); library.setAllOriginal(!pdfAsText) } label: {
+                    Label(pdfAsText ? "PDFs Open as Text" : "PDFs Open as Pages", systemImage: pdfAsText ? "text.alignleft" : "doc.richtext")
+                }
+                .help(pdfAsText ? "PDFs open as reflowed text. Click to open them as their original pages."
+                                : "PDFs open as their original pages. Click to open them as reflowed text.")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button { model.showStats = true } label: { Label("Reading", systemImage: "chart.bar") }
                     .help("How much you have been reading")

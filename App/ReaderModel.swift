@@ -109,7 +109,7 @@ final class ReaderModel: ObservableObject {
                 jumpAnchor = .top
                 jumpBlock = position
                 if let pdf = b.pdf {
-                    showsOriginal = !pdf.hasText || (entry.original ?? true)
+                    showsOriginal = !pdf.hasText || (entry.original ?? !UserDefaults.standard.bool(forKey: Keys.pdfAsText))
                     page = pdf.hasText ? b.page(chapter: ch, block: position) : min(max(0, reloadAtPage ?? entry.page ?? 0), max(0, pdf.pageCount - 1))
                 } else {
                     showsOriginal = false

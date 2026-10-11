@@ -315,6 +315,11 @@ final class Library: ObservableObject {
         update(id) { $0.original = original }
     }
 
+    /// Every PDF on the shelf to open as its own pages, or as text.
+    func setAllOriginal(_ original: Bool) {
+        for e in entries where e.format.lowercased() == "pdf" && e.original != original { setOriginal(e.id, original) }
+    }
+
     func addBookmark(_ id: UUID, _ mark: Bookmark) {
         update(id) { e in
             if !e.bookmarks.contains(where: { $0.chapter == mark.chapter && $0.block == mark.block }) {
