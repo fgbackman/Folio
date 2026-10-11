@@ -65,7 +65,7 @@ struct LibraryView: View {
             Task { for url in urls { await library.add(url) } }
             return !urls.isEmpty
         } isTargeted: { dropTargeted = $0 }
-        .navigationTitle("Library")
+        .navigationTitle("Folio")
         .sheet(isPresented: $model.showDiscover) {
             DiscoverView().environmentObject(library).environmentObject(model)
         }
