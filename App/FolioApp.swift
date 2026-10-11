@@ -56,6 +56,7 @@ struct RootView: View {
                 if urls.count == 1, let last { model.open(last) }
             }
         }
+        .sheet(isPresented: $model.showStats) { StatsView().environmentObject(library) }
         .alert("Couldn’t open that book", isPresented: Binding(get: { model.errorMessage != nil },
                                                               set: { if !$0 { model.errorMessage = nil } })) {
             Button("OK", role: .cancel) {}
@@ -69,6 +70,9 @@ struct RootView: View {
 
 struct FolioCommands: Commands {
     @ObservedObject var model: ReaderModel
+    @ObservedObject private var narrator = Narrator.shared
+    @AppStorage(Keys.twoPages) private var twoPages = false
+    @AppStorage(Keys.pagedTurns) private var pagedTurns = false
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -99,10 +103,33 @@ struct FolioCommands: Commands {
             Button(model.isBookmarked ? "Remove Bookmark" : "Add Bookmark") { model.toggleBookmark() }
                 .keyboardShortcut("d")
                 .disabled(model.book == nil)
+            Button("Highlight Selection") { model.highlightSelection() }
+                .keyboardShortcut("h", modifiers: [.command, .control])
+                .disabled(model.book == nil)
+            Button("Add Note to Selection…") { model.noteSelection() }
+                .keyboardShortcut("n", modifiers: [.command, .control])
+                .disabled(model.book == nil)
+            Button("Look Up Selection") { model.lookUpSelection() }
+                .keyboardShortcut("l")
+                .disabled(model.book == nil)
+            Button("Export Highlights and Notes…") { model.exportMarks() }
+                .disabled(model.entry?.marks.isEmpty ?? true)
+            Divider()
+            Button(narrator.speaking ? "Stop Reading Aloud" : "Read Aloud") { narrator.toggle() }
+                .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(model.book == nil)
+            Divider()
+            Button("Next Page") { PageTurner.shared.turn(1) }.disabled(model.book == nil)
+            Button("Previous Page") { PageTurner.shared.turn(-1) }.disabled(model.book == nil)
+            Toggle("Turn Pages Instead of Scrolling", isOn: $pagedTurns)
             Divider()
             Button(model.showsOriginal ? "Show as Text" : "Show Original Pages") { model.toggleOriginal() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
                 .disabled(!model.canSwitchForm)
+            Toggle("Two Pages Side by Side", isOn: $twoPages)
+                .disabled(!model.showsOriginal)
+            Button("Recognise Text on These Pages") { model.recogniseText() }
+                .disabled(model.book?.pdf == nil || model.book?.pdf?.hasText == true || model.recognising != nil)
             Button(model.showsOriginal ? "Zoom In" : "Bigger Text") { model.adjustFontSize(1) }.keyboardShortcut("=")
             Button(model.showsOriginal ? "Zoom Out" : "Smaller Text") { model.adjustFontSize(-1) }.keyboardShortcut("-")
             Divider()
@@ -112,6 +139,8 @@ struct FolioCommands: Commands {
             Button("Back to Library") { model.closeBook() }
                 .keyboardShortcut("l", modifiers: [.command, .shift])
                 .disabled(model.book == nil)
+            Divider()
+            Button("Reading Statistics") { model.showMainWindow(); model.showStats = true }
         }
     }
 }
@@ -157,6 +186,11 @@ struct MenuBarMenu: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         SpaceWeather.shared.start()      // live Kp index for the aurora on the covers
+        PageTurner.shared.start()
+        ReadingLog.shared.start()
+        ShelfSync.shared.start()
+        Spotlight.catchUp()
+        FinderCover.catchUp()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -170,6 +204,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A book chosen from Spotlight's results.
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        guard let id = Spotlight.entryID(from: userActivity), let entry = Library.shared.entry(id) else { return false }
+        ReaderModel.shared.open(entry)
+        if !ReaderModel.shared.isFloating { ReaderModel.shared.showMainWindow() }
+        return true
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if !flag { ReaderModel.shared.showMainWindow() }
         return true
@@ -177,6 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         ReaderModel.shared.savePosition()
+        ReadingLog.shared.save()
         Library.shared.save()
     }
 

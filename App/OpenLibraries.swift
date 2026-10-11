@@ -88,10 +88,50 @@ enum OpenLibraries {
         }
     }
 
+    /// Subjects offered for browsing; every library that can be browsed files its books under these.
+    static let subjects = ["Fiction", "Science Fiction", "Mystery", "Adventure", "Fantasy", "Horror", "Romance", "Children",
+                           "Poetry", "Drama", "Humor", "Philosophy", "History", "Biography", "Science", "Travel", "Religion", "Art"]
+
+    /// The libraries that can be browsed without a search: the most downloaded books, of one subject or of all.
+    static let browsable: [OpenSource] = [.gutenberg, .standard, .archive, .openLibrary]
+
+    static func browse(_ source: OpenSource, subject: String?) async throws -> [OpenBook] {
+        switch source {
+        case .gutenberg:
+            var items = ["sort_order": "downloads"]
+            if let subject { items["query"] = "s.\"\(subject.lowercased())\"" }
+            return try await gutenberg(items)
+        case .standard:
+            guard let subject else { return try await standard("https://standardebooks.org/ebooks", ["sort": "popularity"]) }
+            let slug = subject.lowercased().replacingOccurrences(of: " ", with: "-")
+            do { return try await standard("https://standardebooks.org/subjects/\(slug)", ["sort": "popularity"]) }
+            catch Failure.http(404) { return [] }           // a subject Standard Ebooks does not use
+        case .archive:
+            return try await archive(matching: subject.map { "subject:\"\($0.lowercased())\"" } ?? "collection:(gutenberg OR americana)")
+        case .openLibrary:
+            guard let subject else { return [] }
+            let slug = subject.lowercased().replacingOccurrences(of: " ", with: "_")
+            let data = try await get("https://openlibrary.org/subjects/\(slug).json", ["ebooks": "true", "limit": "40"])
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], let works = root["works"] as? [[String: Any]] else { return [] }
+            return works.compactMap { w in
+                guard w["public_scan"] as? Bool == true, let key = w["key"] as? String, let title = w["title"] as? String,
+                      let id = w["ia"] as? String, !id.isEmpty else { return nil }
+                let authors = (w["authors"] as? [[String: Any]] ?? []).compactMap { $0["name"] as? String }
+                let year = (w["first_publish_year"] as? Int).map(String.init) ?? ""
+                return OpenBook(source: .openLibrary, key: key, title: tidy(title), author: tidy(authors.prefix(2).joined(separator: ", ")),
+                                detail: year.isEmpty ? "Scan" : "Scan · first published \(year)", fetch: .archive([id]))
+            }
+        default:
+            return []
+        }
+    }
+
     // MARK: Project Gutenberg (its OPDS catalogue)
 
-    private static func gutenberg(_ q: String) async throws -> [OpenBook] {
-        let data = try await get("https://www.gutenberg.org/ebooks/search.opds/", ["query": q])
+    private static func gutenberg(_ q: String) async throws -> [OpenBook] { try await gutenberg(["query": q]) }
+
+    private static func gutenberg(_ items: [String: String]) async throws -> [OpenBook] {
+        let data = try await get("https://www.gutenberg.org/ebooks/search.opds/", items)
         var out: [OpenBook] = []
         for e in Atom.entries(data) {
             guard let id = e.text["id"], let r = id.range(of: #"/ebooks/(\d+)\.opds"#, options: .regularExpression) else { continue }
@@ -106,7 +146,11 @@ enum OpenLibraries {
     // MARK: Standard Ebooks (its search page; the catalogue feed is for patrons only)
 
     private static func standard(_ q: String) async throws -> [OpenBook] {
-        let data = try await get("https://standardebooks.org/ebooks", ["query": q])
+        try await standard("https://standardebooks.org/ebooks", ["query": q])
+    }
+
+    private static func standard(_ page: String, _ items: [String: String]) async throws -> [OpenBook] {
+        let data = try await get(page, items)
         let html = String(decoding: data, as: UTF8.self)
         var out: [OpenBook] = []
         let pieces = html.components(separatedBy: "<li typeof=\"schema:Book\" about=\"").dropFirst()
@@ -127,7 +171,11 @@ enum OpenLibraries {
 
     private static func archive(_ q: String) async throws -> [OpenBook] {
         let words = q.replacingOccurrences(of: #"[^\p{L}\p{N} ]"#, with: " ", options: .regularExpression)
-        let query = "(title:(\(words)) OR creator:(\(words))) AND mediatype:texts AND format:(EPUB OR \"Text PDF\")"
+        return try await archive(matching: "(title:(\(words)) OR creator:(\(words)))")
+    }
+
+    private static func archive(matching what: String) async throws -> [OpenBook] {
+        let query = what + " AND mediatype:texts AND format:(EPUB OR \"Text PDF\")"
             + " AND NOT collection:(inlibrary OR printdisabled) AND NOT access-restricted-item:true"
         guard var parts = URLComponents(string: "https://archive.org/advancedsearch.php") else { return [] }
         parts.queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "rows", value: "20"),

@@ -15,6 +15,14 @@ struct ReadingSettings: View {
     @AppStorage(Keys.floatTheme) private var floatThemeName = ""
     @AppStorage(Keys.animateCovers) private var animateCovers = true
     @AppStorage(Keys.liveSpaceWeather) private var liveSpaceWeather = true
+    @AppStorage(Keys.pagedTurns) private var pagedTurns = false
+    @AppStorage(Keys.tintPages) private var tintPages = true
+    @AppStorage(Keys.twoPages) private var twoPages = false
+    @AppStorage(Keys.voice) private var voice = ""
+    @AppStorage(Keys.voiceRate) private var voiceRate: Double = 1.0
+    @AppStorage(Keys.syncShelf) private var syncShelf = false
+    @AppStorage(Keys.finderCovers) private var finderCovers = true
+    @ObservedObject private var sync = ShelfSync.shared
 
     var body: some View {
         Form {
@@ -44,6 +52,35 @@ struct ReadingSettings: View {
                     }
             }
             if showFloat {
+                Section("Pages") {
+                    Toggle("Turn pages instead of scrolling", isOn: $pagedTurns)
+                    Text("Space, the arrow keys and Page Up/Down move a screenful at a time either way; with this on the next screenful appears at once, like a turned page.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Colour PDF pages like the theme", isOn: $tintPages)
+                    Toggle("Show PDF pages two side by side", isOn: $twoPages)
+                }
+                Section("Reading aloud") {
+                    Picker("Voice", selection: $voice) {
+                        Text("System voice").tag("")
+                        ForEach(Narrator.voices, id: \.identifier) { v in
+                            Text(v.quality == .default ? v.name : "\(v.name) (\(v.quality == .premium ? "Premium" : "Enhanced"))").tag(v.identifier)
+                        }
+                    }
+                    LabeledContent("Speed") {
+                        HStack {
+                            Slider(value: $voiceRate, in: 0.6...1.6)
+                            Text(String(format: "%.1f×", voiceRate)).monospacedDigit().frame(width: 34)
+                        }
+                    }
+                }
+                Section("Shelf") {
+                    Toggle("Keep the shelf in step across my Macs (iCloud Drive)", isOn: $syncShelf)
+                        .onChange(of: syncShelf) { _, _ in sync.syncSoon(after: 0) }
+                    Text(syncShelf && !sync.status.isEmpty ? sync.status
+                         : "Copies your books into iCloud Drive › Folio and shares your place, bookmarks, highlights, tags and covers between Macs with this turned on.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Toggle("Give downloaded books their cover in the Finder", isOn: $finderCovers)
+                }
                 Section("Library") {
                     Toggle("Animate covers", isOn: $animateCovers)
                     Text("Each cover is a real constellation with tonight's Moon, planets and meteor showers, and replays of real eclipses, comets and supernovae. Hover a cover to learn what you're seeing. Covers stay still when Reduce Motion is on.")

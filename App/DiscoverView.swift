@@ -6,6 +6,7 @@ final class Discover: ObservableObject {
     static let shared = Discover()
 
     enum Progress: Equatable {
+        case waiting                // in the queue, behind other downloads
         case fetching(Double)       // 0…1, or below zero while the size is unknown
         case failed(String)
     }
@@ -22,6 +23,12 @@ final class Discover: ObservableObject {
 
     private var bySource: [OpenSource: [OpenBook]] = [:]
     private var task: Task<Void, Never>?
+    /// Downloads wait their turn: a few at a time, the rest in line.
+    private var queue: [OpenBook] = []
+    private var running: [String: Task<Void, Never>] = [:]
+    private static let atOnce = 3
+    /// What the results are of: a search, or a shelf being browsed.
+    @Published private(set) var browsing: String?
 
     private init() {
         if let saved = UserDefaults.standard.stringArray(forKey: "openLibraries") {
@@ -37,17 +44,28 @@ final class Discover: ObservableObject {
     func search() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
+        browsing = nil
+        ask(q, OpenSource.allCases.filter(enabled.contains)) { try await OpenLibraries.search($0, q) }
+    }
+
+    /// The most downloaded books of a subject (or of everything), from the libraries that keep such lists.
+    func browse(_ subject: String?) {
+        query = ""
+        browsing = subject ?? "Popular"
+        ask(subject ?? "Popular", OpenLibraries.browsable.filter(enabled.contains)) { try await OpenLibraries.browse($0, subject: subject) }
+    }
+
+    private func ask(_ q: String, _ sources: [OpenSource], _ fetch: @escaping @Sendable (OpenSource) async throws -> [OpenBook]) {
         task?.cancel()
         searched = q
         bySource = [:]
         results = []
         states = [:]
-        let sources = OpenSource.allCases.filter(enabled.contains)
         for s in sources { states[s] = .searching }
         task = Task {
             await withTaskGroup(of: (OpenSource, Result<[OpenBook], Error>).self) { group in
                 for s in sources {
-                    group.addTask { (s, await Result { try await OpenLibraries.search(s, q) }) }
+                    group.addTask { (s, await Result { try await fetch(s) }) }
                 }
                 for await (source, result) in group {
                     if Task.isCancelled { return }
@@ -79,11 +97,39 @@ final class Discover: ObservableObject {
         results = out
     }
 
-    /// Downloads a book, shelves it, and returns its place on the shelf.
-    @discardableResult
-    func get(_ book: OpenBook) async -> LibraryEntry? {
-        if case .fetching = progress[book.id] { return nil }
-        progress[book.id] = .fetching(-1)
+    /// Puts a book in line to be downloaded and shelved.
+    func get(_ book: OpenBook) {
+        switch progress[book.id] {
+        case .waiting, .fetching: return
+        default: break
+        }
+        progress[book.id] = .waiting
+        queue.append(book)
+        pump()
+    }
+
+    /// Stops a download, or takes a book out of the line.
+    func cancel(_ book: OpenBook) {
+        queue.removeAll { $0.id == book.id }
+        running[book.id]?.cancel()
+        progress[book.id] = nil
+    }
+
+    var downloading: Int { running.count + queue.count }
+
+    private func pump() {
+        while running.count < Discover.atOnce, !queue.isEmpty {
+            let book = queue.removeFirst()
+            progress[book.id] = .fetching(-1)
+            running[book.id] = Task {
+                await fetch(book)
+                running[book.id] = nil
+                pump()
+            }
+        }
+    }
+
+    private func fetch(_ book: OpenBook) async {
         do {
             let id = book.id
             let url = try await OpenLibraries.download(book) { fraction in
@@ -91,16 +137,20 @@ final class Discover: ObservableObject {
                     if case .fetching = Discover.shared.progress[id] { Discover.shared.progress[id] = .fetching(fraction) }
                 }
             }
-            guard let entry = await Library.shared.add(url) else {
+            if Task.isCancelled {
+                try? FileManager.default.removeItem(at: url)
+                progress[book.id] = nil
+                return
+            }
+            guard await Library.shared.add(url) != nil else {
                 try? FileManager.default.removeItem(at: url)
                 progress[book.id] = .failed("Folio couldn’t read the file.")
-                return nil
+                return
             }
             progress[book.id] = nil
-            return entry
         } catch {
-            progress[book.id] = .failed(error.localizedDescription)
-            return nil
+            let stopped = Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled
+            progress[book.id] = stopped ? nil : .failed(error.localizedDescription)
         }
     }
 }
@@ -139,6 +189,7 @@ struct DiscoverView: View {
                 .padding(8)
                 .background(HierarchicalShapeStyle.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
                 sources
+                subjects
             }
             .padding(20)
             Divider()
@@ -177,6 +228,25 @@ struct DiscoverView: View {
         }
     }
 
+    /// Shelves to browse without searching: the most downloaded books of each subject.
+    private var subjects: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                Text("Browse").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                ForEach(["Popular"] + OpenLibraries.subjects, id: \.self) { name in
+                    let on = discover.browsing == name
+                    Button { discover.browse(name == "Popular" ? nil : name) } label: {
+                        Text(name).font(.system(size: 12))
+                            .padding(.horizontal, 9).padding(.vertical, 4)
+                            .background(on ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05), in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
     private func help(_ source: OpenSource) -> String {
         if case .failed(let why) = discover.states[source] ?? .idle { return "\(source.name): \(why)" }
         return source.about
@@ -190,9 +260,11 @@ struct DiscoverView: View {
                     Text("Asking the libraries…").foregroundStyle(.secondary)
                 } else if discover.searched.isEmpty {
                     Image(systemName: "globe").font(.system(size: 34)).foregroundStyle(.tertiary)
-                    Text("Search \(discover.enabled.count == OpenSource.allCases.count ? "every open library" : "the chosen libraries") at once.")
+                    Text("Search \(discover.enabled.count == OpenSource.allCases.count ? "every open library" : "the chosen libraries") at once, or browse a subject.")
                     Text("Books you get are kept in Folio and appear on your shelf with a cover of their own.")
                         .font(.callout).foregroundStyle(.secondary)
+                } else if discover.browsing != nil {
+                    Text("Nothing to browse under “\(discover.searched)” in the chosen libraries.").foregroundStyle(.secondary)
                 } else {
                     Text("Nothing found for “\(discover.searched)”.").foregroundStyle(.secondary)
                 }
@@ -211,6 +283,14 @@ struct DiscoverView: View {
                 .padding(.vertical, 6)
             }
         }
+    }
+}
+
+private extension OpenBookRow {
+    var cancelButton: some View {
+        Button { discover.cancel(book) } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+            .buttonStyle(.plain)
+            .help("Stop this download")
     }
 }
 
@@ -255,13 +335,21 @@ private struct OpenBookRow: View {
         if let entry {
             Button("Read") { model.open(entry); close() }.buttonStyle(.borderedProminent)
         } else if case .fetching(let fraction) = discover.progress[book.id] {
-            if fraction >= 0 {
-                ProgressView(value: min(1, fraction)).frame(width: 70)
-            } else {
-                ProgressView().controlSize(.small).frame(width: 70)
+            HStack(spacing: 6) {
+                if fraction >= 0 {
+                    ProgressView(value: min(1, fraction)).frame(width: 70)
+                } else {
+                    ProgressView().controlSize(.small).frame(width: 70)
+                }
+                cancelButton
+            }
+        } else if case .waiting = discover.progress[book.id] {
+            HStack(spacing: 6) {
+                Text("Waiting").font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 70)
+                cancelButton
             }
         } else {
-            Button("Get") { Task { await discover.get(book) } }
+            Button("Get") { discover.get(book) }
                 .help("Download from \(book.source.name) and add to your shelf")
         }
     }

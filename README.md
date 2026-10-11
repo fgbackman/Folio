@@ -25,11 +25,13 @@ SIGN_ID="Developer ID Application: Your Name (TEAMID)" ./build.sh --install
 
 ## What it does
 
-**Formats:** EPUB 2 and 3 (table of contents from nav or NCX, inline images), PDF, plain text (Project Gutenberg headers stripped, chapters detected, `_italics_` honoured), Markdown, and single-file HTML. DRM-protected EPUBs can't be opened.
+**Formats:** EPUB 2 and 3 (table of contents from nav or NCX, inline images), PDF, Kindle (MOBI, AZW, AZW3), FictionBook (FB2), Word (DOCX, DOC), RTF, OpenDocument, comics (CBZ), plain text (Project Gutenberg headers stripped, chapters detected, `_italics_` honoured), Markdown, and single-file HTML. DRM-protected books can't be opened. Kindle books come without their pictures, and those packed with Huffman compression are not read.
 
 **PDFs, two ways (⇧⌘P):** a PDF opens in its original pages, and one keystroke turns it into reflowed text in your own font, size and theme — and back, at the same place. Contents, search, bookmarks and progress work in both. The text is pulled out once (running heads and page numbers dropped, paragraphs rejoined, chapters taken from the PDF's outline or its headings) and kept in `~/Library/Application Support/Folio/Converted`. A scanned PDF with no text layer can only be read in its original pages.
 
-**Find free books (⇧⌘O):** one search asks Project Gutenberg, Standard Ebooks, the Internet Archive, Open Library, Wikisource and arXiv together. Get a book and it is downloaded into `~/Library/Application Support/Folio/Books` and put on your shelf with a cover of its own.
+**More for PDFs:** pictures and figures are cut from the pages and set in the reflowed text where they stood. A scan with no text can have its text recognised (Book › Recognise Text on These Pages), after which it reflows, searches and reads aloud like any other book. Original pages take on the theme's colours (white paper becomes the theme's page, so Night and Midnight are easy on the eyes) and can be shown two side by side.
+
+**Find free books (⇧⌘O):** one search asks Project Gutenberg, Standard Ebooks, the Internet Archive, Open Library, Wikisource and arXiv together — or browse the most downloaded books of a subject. Get a book and it is downloaded into `~/Library/Application Support/Folio/Books` and put on your shelf with a cover of its own; several downloads wait their turn in a queue and any can be stopped. Books Folio downloaded can be removed together with their file, and carry their cover as their icon in the Finder.
 
 **Library:** drag books onto the window or the Dock icon, or press ⌘O. Every cover is painted by the app, never taken from the book. The colours and drifting mist come from the title; the sky over them is real:
 
@@ -42,9 +44,19 @@ SIGN_ID="Developer ID Application: Your Name (TEAMID)" ./build.sh --install
 - **Your reading progress as an orbit**: a real planet or Halley's Comet on its true ellipse; Kepler's second law decides where you are, so equal reading sweeps equal areas.
 - **Hover a cover** and the pointer becomes a gravitational lens (the point-mass lens equation bends the stars into arcs and an Einstein ring), with a caption naming what's under it — a star's distance and the year its light left, a nebula's story, tonight's showers and planets.
 
+**Shelf:** the books you are in the middle of stand at the top, one click from where you stopped. Give books tags (right-click › Tags) to gather them into collections, and order the shelf by recency, title, author, progress or date added. Right-click › Choose Cover… picks a book's sky by hand from all 200. The chart button shows how much you have been reading: time per day, your streak, and your pace in each book.
+
 The covers animate slowly, drawn on the GPU with Metal; they pause whenever Folio isn't the front app. Turn the animation off under Settings › Library › Animate covers (they also stay still when Reduce Motion is on). Type in the library field to filter; press Return to search inside every book.
 
 **Search (⌘F):** full-text search across the whole book, ignoring case, accents (é = e, ß = ss, Greek and Cyrillic too), curly quotes, dashes and ligatures. Options: Aa (exact case and accents), Whole words, All words (every word in the same paragraph, any order). Results are grouped by chapter and highlighted in the text. ⌘G / ⇧⌘G step through matches.
+
+**Highlights and notes:** select text and press ⌃⌘H to highlight it (four colours), ⌃⌘N to write a note on it. They are listed in the sidebar's Notes tab and export to Markdown. ⌘L looks the selection up in the Mac's dictionary and on Wikipedia. A footnote reference opens its note in a small window beside it instead of taking you away from the page.
+
+**Read aloud (⌥⌘R):** the book is read from the top of the page in a system voice (chosen in Settings, with its speed); the paragraph and the word being spoken are marked and the page follows.
+
+**Turning pages:** Space, ⇧Space, the left and right arrows and Page Up/Down move a screenful at a time and carry on into the next chapter. With Settings › Pages › Turn pages instead of scrolling, the next screenful appears at once.
+
+**Across your Macs:** Settings › Shelf › Keep the shelf in step copies your books into iCloud Drive › Folio and shares your place, bookmarks, highlights, tags and covers between Macs that have it turned on. Books are also in Spotlight: type a title, an author or words from a book's opening.
 
 **Reading:** contents sidebar that tracks where you are, bookmarks (⌘D), nine fonts, six themes (Paper, Sepia, Sage, Night, Midnight, Glass), size, line spacing and column width. Progress and time left at the bottom; your place is remembered per book.
 
@@ -62,6 +74,10 @@ The covers animate slowly, drawn on the GPU with Metal; they pause whenever Foli
 | Find in book / next / previous | ⌘F / ⌘G / ⇧⌘G |
 | Previous / next chapter | ⌘[ / ⌘] |
 | Bookmark | ⌘D |
+| Highlight / note on the selection | ⌃⌘H / ⌃⌘N |
+| Look up the selection | ⌘L |
+| Read aloud / stop | ⌥⌘R |
+| Next / previous page | Space, → , Page Down / ⇧Space, ←, Page Up |
 | Bigger / smaller text | ⌘= / ⌘- |
 | Float book / return | ⇧⌘F, Esc |
 | Back to library | ⇧⌘L |
@@ -70,7 +86,7 @@ The covers animate slowly, drawn on the GPU with Metal; they pause whenever Foli
 
 ```
 core/      C engine — zip + inflate, XML/HTML tokenizer, EPUB/text/Markdown loaders,
-           styled-block builder, folding full-text search; reader.h is the whole API
+           styled-block builder (with the links between a book's parts), folding full-text search; reader.h is the whole API
 core/sky.c Sky engine — Sun, Moon, planets (JPL elements), meteor showers, eclipses, Kepler's equation;
            skydata.c holds the star, constellation, Milky Way and deep-sky data of the first 42 skies,
            skydata2.c the other 158 (generated by tools/skygen.py from the catalogues named below)
@@ -78,8 +94,11 @@ App/       SwiftUI app — Book.swift wraps the C API; Sky.swift wraps the sky e
            EtherealCover.swift and CoverPainter.swift paint the still part of the covers;
            CoverScene.swift lays out what moves, and CoverMetal.swift and CoverShaders.swift
            draw it on the GPU (the shaders are compiled at launch, so there is no Metal build step);
-           PDFBook.swift reflows a PDF's text and OriginalPages.swift shows its pages;
-           OpenLibraries.swift searches the free libraries and DiscoverView.swift is its window
+           PDFBook.swift reflows a PDF's text (and recognises it on scans) and OriginalPages.swift shows its pages;
+           Formats.swift turns Kindle, FictionBook, word-processor and comic files into something the engine reads;
+           OpenLibraries.swift searches the free libraries and DiscoverView.swift is its window;
+           Annotations.swift (highlights, notes), LookUp.swift, Narrator.swift (reading aloud), PageTurner.swift,
+           Stats.swift (reading log), Sync.swift (iCloud Drive), Spotlight.swift (search index, Finder covers)
 tools/     skygen.py and skyfields.py — build core/skydata2.c
 Resources/ Info.plist, AppIcon.icns
 build.sh   clang + swiftc build into build/Folio.app
@@ -93,7 +112,7 @@ build/rdtool book.epub -c 3            # chapter 3 as styled blocks
 build/rdtool book.epub -s "query" -w   # search (-w whole words, -a all words, -m match case)
 ```
 
-Library data lives in `~/Library/Application Support/Folio/library.json`. Books you add yourself stay where they are on disk; if you move one, the library marks it missing. (Set `FOLIO_HOME` to another folder to try things out on a separate shelf.)
+Library data lives in `~/Library/Application Support/Folio/library.json`. Books you add yourself stay where they are on disk; if you move one, the library marks it missing. (Set `FOLIO_HOME` to another folder to try things out on a separate shelf, and `FOLIO_SYNC` to stand in for the iCloud Drive folder.)
 
 ## Sky data
 

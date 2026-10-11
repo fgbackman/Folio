@@ -28,7 +28,17 @@ final class Book: @unchecked Sendable {
         UTType(filenameExtension: "md"),
         UTType(filenameExtension: "markdown"),
         UTType.pdf,
-    ] as [UTType?]).compactMap { $0 }
+        UTType.rtf,
+    ] as [UTType?]).compactMap { $0 } + Converted.extensions.compactMap { UTType(filenameExtension: $0) }
+
+    /// A link from one place in the book to another: a footnote reference, a cross-reference.
+    struct Link: Hashable {
+        let block: Int
+        let start: Int
+        let length: Int
+        let chapter: Int
+        let target: Int
+    }
 
     let url: URL
     let title: String
@@ -52,9 +62,23 @@ final class Book: @unchecked Sendable {
         let errCap = 256
         var err = [CChar](repeating: 0, count: errCap)
         // A PDF is read through the text pulled out of it; the pages themselves are shown by PDFKit.
-        let source: PDFSource? = url.pathExtension.lowercased() == "pdf" ? try PDFImport.prepare(url) : nil
+        // Comics become a PDF of their pages; Kindle, FictionBook and word-processor files become HTML.
+        let ext = url.pathExtension.lowercased()
+        var source: PDFSource?
+        var opened = url
+        var kind: String?
+        if ext == "pdf" {
+            source = try PDFImport.prepare(url)
+            kind = "PDF"
+        } else if Converted.comics.contains(ext) {
+            source = try PDFImport.prepare(try Converted.comic(url))
+            kind = "Comic"
+        } else if let name = Converted.formats[ext] {
+            opened = try Converted.html(url)
+            kind = name
+        }
         pdf = source
-        guard let h = rd_open((source?.html ?? url).path, &err, errCap) else {
+        guard let h = rd_open((source?.html ?? opened).path, &err, errCap) else {
             let why = err.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
             throw OpenError.failed(why.isEmpty ? "This file could not be opened." : why)
         }
@@ -62,7 +86,7 @@ final class Book: @unchecked Sendable {
         self.url = url
         title = String(cString: rd_title(h))
         author = String(cString: rd_author(h))
-        format = source == nil ? String(cString: rd_format(h)) : "PDF"
+        format = kind ?? String(cString: rd_format(h))
         wordCount = Int(rd_word_count(h))
 
         let n = Int(rd_chapter_count(h))
@@ -103,10 +127,20 @@ final class Book: @unchecked Sendable {
 
         var raw: UnsafePointer<rd_block>? = nil
         let n = Int(rd_chapter_blocks(handle, Int32(chapter), &raw))
+        var rawLinks: UnsafePointer<rd_link>? = nil
+        let nl = Int(rd_chapter_links(handle, Int32(chapter), &rawLinks))
+        var links: [Int: [Link]] = [:]
+        if let rawLinks {
+            for i in 0..<nl {
+                let l = rawLinks[i]
+                links[Int(l.block), default: []].append(Link(block: Int(l.block), start: Int(l.start), length: Int(l.length),
+                                                              chapter: Int(l.to_chapter), target: Int(l.to_block)))
+            }
+        }
         var out: [Block] = []
         out.reserveCapacity(n)
         if let raw {
-            for i in 0..<n { out.append(Block(index: i, raw: raw[i])) }
+            for i in 0..<n { out.append(Block(index: i, raw: raw[i], links: links[i] ?? [])) }
         }
         lock.lock()
         cache[chapter] = out
@@ -149,6 +183,50 @@ final class Book: @unchecked Sendable {
         // the first block that reaches onto the page
         let block = s.firstIndex { $0 >= offset - chapterStarts[ch] } ?? max(0, s.count - 1)
         return (ch, block)
+    }
+
+    /// The opening of the book as plain text, for the system's search index.
+    func sample(_ limit: Int) -> String {
+        var out = ""
+        for ch in 0..<chapterCount {
+            for b in blocks(ch) where b.kind != .image && b.kind != .rule {
+                out += b.text
+                out += "\n"
+                if out.utf8.count >= limit { return out }
+            }
+        }
+        return out
+    }
+
+    /// What a link leads to: the text at its target, as far as the next heading or a few paragraphs on.
+    func passage(chapter: Int, block: Int) -> String {
+        guard chapter >= 0, chapter < chapterCount else { return "" }
+        let all = blocks(chapter)
+        guard block >= 0, block < all.count else { return "" }
+        var parts = [all[block].text]
+        var at = block
+        if all.contains(where: { !$0.links.isEmpty }) {
+            // Notes that link back to their reference: the note runs as far as the paragraph holding that link.
+            while all[at].links.isEmpty, at + 1 < all.count, parts.count < 8, ![.h1, .h2, .h3].contains(all[at + 1].kind) {
+                at += 1
+                if all[at].kind != .image && all[at].kind != .rule { parts.append(all[at].text) }
+            }
+        } else {
+            // A note whose number sits in a block of its own carries on in the next one.
+            while parts.joined().count < 12, at + 1 < all.count, all[at + 1].kind == .paragraph {
+                at += 1
+                parts.append(all[at].text)
+            }
+        }
+        return parts.joined(separator: "\n\n").replacingOccurrences(of: "↩︎", with: "").replacingOccurrences(of: "↩", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func isHeading(chapter: Int, block: Int) -> Bool {
+        guard chapter >= 0, chapter < chapterCount else { return true }
+        let all = blocks(chapter)
+        guard block > 0, block < all.count else { return true }
+        return [.h1, .h2, .h3].contains(all[block].kind)
     }
 
     func image(_ path: String) -> NSImage? {
@@ -227,9 +305,11 @@ struct Block: Identifiable {
     let kind: Kind
     let text: String
     let styled: AttributedString
+    let links: [Book.Link]
     var id: Int { index }
 
-    init(index: Int, raw: rd_block) {
+    init(index: Int, raw: rd_block, links: [Book.Link] = []) {
+        self.links = links
         self.index = index
         switch raw.type {
         case RD_H1: kind = .h1
@@ -256,13 +336,27 @@ struct Block: Identifiable {
                 a[r].inlinePresentationIntent = intent
             }
         }
+        for (i, l) in links.enumerated() {
+            guard let r = Block.range(in: a, text: text, start: l.start, length: l.length) else { continue }
+            a[r].link = URL(string: "folio-link://\(i)")
+            a[r].swiftUI.underlineStyle = Text.LineStyle(pattern: .dot)
+        }
         self.styled = a
     }
 
-    /// The block's text with search matches painted in.
-    func attributed(hits: [SearchHit], selected: SearchHit?, theme: Theme) -> AttributedString {
-        guard !hits.isEmpty else { return styled }
+    /// The block's text with highlights, search matches and the words being read aloud painted in.
+    func attributed(hits: [SearchHit], selected: SearchHit?, theme: Theme,
+                    marks: [Highlight] = [], spoken: Range<Int>? = nil) -> AttributedString {
+        guard !hits.isEmpty || !marks.isEmpty || spoken != nil else { return styled }
         var a = styled
+        for m in marks {
+            guard let r = Block.range(in: a, text: text, start: m.offset, length: m.length) else { continue }
+            a[r].swiftUI.backgroundColor = HighlightColor.color(m.color, dark: theme.isDark)
+            if m.note != nil { a[r].swiftUI.underlineStyle = Text.LineStyle(pattern: .solid) }
+        }
+        if let spoken, let r = Block.range(in: a, text: text, start: spoken.lowerBound, length: spoken.count) {
+            a[r].swiftUI.backgroundColor = theme.text.opacity(0.16)
+        }
         for h in hits {
             guard let r = Block.range(in: a, text: text, start: h.offset, length: h.length) else { continue }
             a[r].swiftUI.backgroundColor = (h == selected) ? theme.selectedHighlight : theme.highlight

@@ -101,6 +101,48 @@ static void finalize(rd_book *b) {
     }
 }
 
+/* Turn each link's href into the chapter and block it leads to; links that leave the book are dropped. */
+static void resolve_links(rd_book *b) {
+    for (int i = 0; i < b->nch; i++) {
+        chapter *c = b->ch[i];
+        char *dir = c->path ? path_dir(c->path) : NULL;
+        int kept = 0;
+        for (int l = 0; l < c->nlinks; l++) {
+            char *href = c->hrefs[l];
+            const char *frag = strchr(href, '#');
+            int ch = -1, block = 0;
+            if (strstr(href, "://") || strncasecmp(href, "mailto:", 7) == 0) { }
+            else if (href[0] == '#') ch = i;
+            else if (c->path) {
+                char *path = path_resolve(dir, href);
+                for (int j = 0; j < b->nch; j++)
+                    if (b->ch[j]->path && strcmp(b->ch[j]->path, path) == 0) { ch = j; break; }
+                free(path);
+            }
+            if (ch >= 0 && frag && frag[1]) {
+                int found = 0;
+                /* the chapter named first; a single file cut into chapters keeps its ids wherever they fell */
+                for (int pass = 0; pass < 2 && !found; pass++)
+                    for (int j = pass ? 0 : ch; j < (pass ? b->nch : ch + 1) && !found; j++)
+                        for (int a = 0; a < b->ch[j]->nanchors; a++)
+                            if (strcmp(b->ch[j]->anchors[a].id, frag + 1) == 0) {
+                                ch = j; block = b->ch[j]->anchors[a].block; found = 1; break;
+                            }
+                if (!found && href[0] == '#') ch = -1;
+            }
+            free(href);
+            if (ch < 0 || (ch == i && block == c->links[l].block)) continue;
+            c->links[kept] = c->links[l];
+            c->links[kept].to_chapter = ch;
+            c->links[kept].to_block = block;
+            kept++;
+        }
+        c->nlinks = kept;
+        free(c->hrefs); c->hrefs = NULL;
+        free(dir);
+    }
+}
+
 rd_book *rd_open(const char *path, char *err, size_t errlen) {
     if (err && errlen) err[0] = 0;
     size_t len = 0;
@@ -132,6 +174,7 @@ rd_book *rd_open(const char *path, char *err, size_t errlen) {
     free(fallback);
     if (b->nch == 0) book_add_chapter(b, NULL);
     finalize(b);
+    resolve_links(b);
 
     /* EPUB keeps its bytes (resources are read from the zip); others can drop them. */
     if (b->kind != BK_EPUB) { free(b->file); b->file = NULL; b->file_len = 0; }
@@ -144,6 +187,8 @@ void rd_close(rd_book *b) {
         chapter *c = b->ch[i];
         for (int k = 0; k < c->nblocks; k++) { free((void *)c->blocks[k].text); free((void *)c->blocks[k].spans); }
         for (int k = 0; k < c->nanchors; k++) free(c->anchors[k].id);
+        if (c->hrefs) for (int k = 0; k < c->nlinks; k++) free(c->hrefs[k]);
+        free(c->links); free(c->hrefs);
         free(c->blocks); free(c->anchors); free(c->path); free(c->title); free(c);
     }
     for (int t = 0; t < b->ntoc; t++) { free(b->toc[t].title); free(b->toc[t].href); }
@@ -170,6 +215,12 @@ int32_t rd_chapter_blocks(const rd_book *b, int32_t ch, const rd_block **out) {
     if (ch < 0 || ch >= b->nch) { if (out) *out = NULL; return 0; }
     if (out) *out = b->ch[ch]->blocks;
     return b->ch[ch]->nblocks;
+}
+
+int32_t rd_chapter_links(const rd_book *b, int32_t ch, const rd_link **out) {
+    if (ch < 0 || ch >= b->nch) { if (out) *out = NULL; return 0; }
+    if (out) *out = b->ch[ch]->links;
+    return b->ch[ch]->nlinks;
 }
 
 int32_t rd_toc_count(const rd_book *b) { return b->ntoc; }

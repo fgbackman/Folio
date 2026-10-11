@@ -278,8 +278,40 @@ static void push_block(builder *h, int type, const char *text, size_t len, rd_sp
     h->npend = 0;
 }
 
+void chapter_add_link(chapter *c, int block, uint32_t start, uint32_t length, char *href) {
+    if (c->nlinks == c->caplinks) {
+        c->caplinks = c->caplinks ? c->caplinks * 2 : 8;
+        c->links = realloc(c->links, sizeof *c->links * (size_t)c->caplinks);
+        c->hrefs = realloc(c->hrefs, sizeof *c->hrefs * (size_t)c->caplinks);
+    }
+    c->links[c->nlinks] = (rd_link){block, start, length, -1, 0};
+    c->hrefs[c->nlinks++] = href;
+}
+
+void bld_link_open(builder *h, const char *href) {
+    bld_link_close(h);
+    if (h->skip || !href || !*href) return;
+    h->link_href = xstrdup(href);
+    h->link_start = (uint32_t)h->text.len;
+}
+
+void bld_link_close(builder *h) {
+    if (!h->link_href) return;
+    uint32_t s = h->link_start, e = (uint32_t)h->text.len;
+    while (s < e && h->text.data[s] == ' ') s++;
+    if (e > s) {
+        if (h->nplinks == h->capplinks) {
+            h->capplinks = h->capplinks ? h->capplinks * 2 : 4;
+            h->plinks = realloc(h->plinks, sizeof *h->plinks * (size_t)h->capplinks);
+        }
+        h->plinks[h->nplinks++] = (struct plink){s, e - s, h->link_href};
+    } else free(h->link_href);
+    h->link_href = NULL;
+}
+
 void bld_flush(builder *h) {
     run_close(h);
+    if (h->link_href) { free(h->link_href); h->link_href = NULL; }   /* a link around whole blocks is not a reference */
     size_t len = h->text.len;
     while (len && (h->text.data[len - 1] == ' ' || h->text.data[len - 1] == '\n' ||
                    h->text.data[len - 1] == '\t'))
@@ -297,7 +329,16 @@ void bld_flush(builder *h) {
             if (s.length) h->spans[ns++] = s;
         }
         push_block(h, h->type, h->text.data + start, len - start, h->spans, ns);
+        for (int i = 0; i < h->nplinks; i++) {
+            struct plink l = h->plinks[i];
+            if (l.start < start || l.start >= len) { free(l.href); continue; }
+            if (l.start + l.length > len) l.length = (uint32_t)len - l.start;
+            chapter_add_link(h->c, h->c->nblocks - 1, l.start - (uint32_t)start, l.length, l.href);
+        }
+    } else {
+        for (int i = 0; i < h->nplinks; i++) free(h->plinks[i].href);
     }
+    h->nplinks = 0;
     sb_clear(&h->text);
     h->nspans = 0;
     h->run_start = 0;
@@ -333,7 +374,8 @@ void bld_finish(builder *h) {
         }
         c->anchors[c->nanchors++] = (anchor){h->pend[i], c->nblocks ? c->nblocks - 1 : 0};
     }
-    free(h->pend); free(h->spans); sb_free(&h->text);
+    free(h->pend); free(h->spans); free(h->plinks); sb_free(&h->text);
+    h->plinks = NULL;
     h->pend = NULL; h->spans = NULL; h->npend = 0;
 }
 
@@ -417,6 +459,7 @@ void html_to_chapter(rd_book *b, chapter *c, const char *html, size_t n, const c
                 continue;
             }
             if (k.selfclose) continue;
+            if (strcmp(nm, "a") == 0) { if (xml_attr(k.attrs, k.alen, "href", &attr) && attr.len) bld_link_open(&h, attr.data); continue; }
             if (is_one_of(nm, ITALIC_TAGS)) { h.ital++; bld_restyle(&h); }
             else if (is_one_of(nm, BOLD_TAGS)) { h.bold++; bld_restyle(&h); }
             else if (is_one_of(nm, CODE_TAGS)) { h.code++; bld_restyle(&h); }
@@ -435,6 +478,7 @@ void html_to_chapter(rd_book *b, chapter *c, const char *html, size_t n, const c
             if (h.type != RD_LI || strcmp(nm, "p") != 0) bld_set_type(&h, base_type(&h));
             continue;
         }
+        if (strcmp(nm, "a") == 0) { bld_link_close(&h); continue; }
         if (is_one_of(nm, ITALIC_TAGS)) { if (h.ital) h.ital--; bld_restyle(&h); }
         else if (is_one_of(nm, BOLD_TAGS)) { if (h.bold) h.bold--; bld_restyle(&h); }
         else if (is_one_of(nm, CODE_TAGS)) { if (h.code) h.code--; bld_restyle(&h); }

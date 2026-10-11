@@ -66,6 +66,8 @@ final class SkyCatalog {
     static let shared = SkyCatalog()
     private var cache: [Int: SkyField] = [:]
     let count: Int = Int(sky_constellation_count())
+    /// The constellations Folio began with. Their covers are left exactly as they were.
+    static let firstSkies = 42
 
     func field(_ i: Int) -> SkyField {
         if let f = cache[i] { return f }
@@ -84,6 +86,14 @@ final class SkyCatalog {
         let c = ptr.pointee
         var rng = SeededRandom(seed: UInt64(i) &* 0x9E3779B97F4A7C15 &+ 77)
 
+        // A field zoomed in on a cluster or a small asterism holds only faint stars. They are drawn as if
+        // seen through a telescope: brightened together until the fifth brightest is an easy naked-eye star.
+        var lift = 0.0
+        if i >= SkyCatalog.firstSkies, c.nstars > 5 {
+            let mags = (0..<Int(c.nstars)).map { Double(c.stars[$0].mag) }.sorted()
+            lift = min(4.5, max(0, mags[4] - 2.6))
+        }
+
         var stars: [SkyStar] = []
         stars.reserveCapacity(Int(c.nstars))
         for k in 0..<Int(c.nstars) {
@@ -93,7 +103,7 @@ final class SkyCatalog {
             let ly = Double(s.dist)
             let parallax = ly > 0 ? min(1.0, max(0.05, (10.0 / ly).squareRoot())) : 0.08
             stars.append(SkyStar(
-                p: CGPoint(x: Double(s.x), y: Double(s.y)), mag: Double(s.mag),
+                p: CGPoint(x: Double(s.x), y: Double(s.y)), mag: Double(s.mag) - lift,
                 rgb: (Double(r), Double(g), Double(b)), parallax: parallax, ly: ly,
                 name: s.name >= 0 ? str(sky_name(Int32(s.name))) : nil,
                 desc: s.desc >= 0 ? str(sky_name(Int32(s.desc))) : nil,

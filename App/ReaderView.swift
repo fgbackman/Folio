@@ -6,13 +6,14 @@ struct ReaderView: View {
     @AppStorage(Keys.theme) private var themeName = Theme.paper.rawValue
     @State private var columns = NavigationSplitViewVisibility.doubleColumn
     @State private var showAppearance = false
+    @ObservedObject private var narrator = Narrator.shared
 
     private var theme: Theme { Theme(rawValue: themeName) ?? .paper }
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns) {
             SidebarView()
-                .navigationSplitViewColumnWidth(min: 230, ideal: 290, max: 420)
+                .navigationSplitViewColumnWidth(min: 270, ideal: 300, max: 420)
         } detail: {
             ZStack {
                 ThemeBackground(theme: theme).ignoresSafeArea()
@@ -27,6 +28,8 @@ struct ReaderView: View {
         .onChange(of: model.searchFocusToken) { _, _ in
             if columns == .detailOnly { columns = .doubleColumn }
         }
+        .sheet(item: $model.noteDraft) { NoteEditor(mark: $0).environmentObject(model) }
+        .sheet(item: $model.lookUp) { LookUpView(term: $0) }
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
@@ -43,6 +46,25 @@ struct ReaderView: View {
                 Label("Bookmark", systemImage: model.isBookmarked ? "bookmark.fill" : "bookmark")
             }
             .help("Bookmark this spot (⌘D)")
+            Menu {
+                ForEach(HighlightColor.names.indices, id: \.self) { i in
+                    Button(HighlightColor.names[i]) { model.highlightSelection(color: i) }
+                }
+                Divider()
+                Button("Add a Note…") { model.noteSelection() }
+                Button("Look Up") { model.lookUpSelection() }
+                Divider()
+                Button("Show Highlights and Notes") { model.sidebarTab = .notes; if columns == .detailOnly { columns = .doubleColumn } }
+            } label: {
+                Label("Highlight", systemImage: "highlighter")
+            } primaryAction: {
+                model.highlightSelection()
+            }
+            .help("Highlight the selected text (⌃⌘H); hold for colours, notes and look-up")
+            Button { narrator.toggle() } label: {
+                Label(narrator.speaking ? "Stop Reading" : "Read Aloud", systemImage: narrator.speaking ? "stop.circle" : "speaker.wave.2")
+            }
+            .help(narrator.speaking ? "Stop reading aloud (⌥⌘R)" : "Read aloud from the top of the page (⌥⌘R)")
             if model.canSwitchForm {
                 Button { model.toggleOriginal() } label: {
                     Label(model.showsOriginal ? "Show as Text" : "Show Original Pages",
@@ -68,7 +90,7 @@ struct ReaderView: View {
                 Text(book.chapterTitles[min(model.chapter, book.chapterCount - 1)]).lineLimit(1)
                 Spacer()
                 if model.showsOriginal { Text("Page \(model.page + 1) of \(model.pageCount)").monospacedDigit() }
-                Text(timeLeft).monospacedDigit()
+                if book.pdf?.hasText != false { Text(timeLeft).monospacedDigit() }
                 Text("\(Int((model.progress * 100).rounded()))%").monospacedDigit().frame(minWidth: 34, alignment: .trailing)
             }
         }
@@ -137,6 +159,7 @@ struct SidebarView: View {
             case .contents: ContentsList()
             case .search: SearchPanel()
             case .bookmarks: BookmarksList()
+            case .notes: NotesList()
             }
         }
     }

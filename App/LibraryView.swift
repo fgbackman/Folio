@@ -9,12 +9,20 @@ struct LibraryView: View {
     @State private var searchingShelf = false
     @State private var shelfQuery = ""
     @State private var dropTargeted = false
+    @State private var tag: String?
+    @AppStorage(Keys.shelfOrder) private var orderName = Library.Order.recent.rawValue
+
+    private var order: Library.Order { Library.Order(rawValue: orderName) ?? .recent }
 
     private var shown: [LibraryEntry] {
         let q = filter.trimmingCharacters(in: .whitespaces)
-        let all = library.sorted
+        var all = library.sorted(by: order)
+        if let tag { all = all.filter { $0.labels.contains(tag) } }
         guard !q.isEmpty else { return all }
-        return all.filter { $0.title.localizedCaseInsensitiveContains(q) || $0.author.localizedCaseInsensitiveContains(q) }
+        return all.filter {
+            $0.title.localizedCaseInsensitiveContains(q) || $0.author.localizedCaseInsensitiveContains(q)
+                || $0.labels.contains { $0.localizedCaseInsensitiveContains(q) }
+        }
     }
 
     var body: some View {
@@ -32,6 +40,11 @@ struct LibraryView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
+                    let unfinished = library.unfinished(3)
+                    if !unfinished.isEmpty, tag == nil, filter.trimmingCharacters(in: .whitespaces).isEmpty {
+                        ContinueRow(entries: unfinished)
+                    }
+                    shelfControls
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 180), spacing: 26, alignment: .top)],
                               alignment: .leading, spacing: 30) {
                         ForEach(shown) { BookCard(entry: $0) }
@@ -56,7 +69,13 @@ struct LibraryView: View {
         .sheet(isPresented: $model.showDiscover) {
             DiscoverView().environmentObject(library).environmentObject(model)
         }
+        .sheet(item: $model.coverPick) { CoverGallery(entry: $0).environmentObject(library) }
+        .onChange(of: library.allTags) { _, tags in if let tag, !tags.contains(tag) { self.tag = nil } }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { model.showStats = true } label: { Label("Reading", systemImage: "chart.bar") }
+                    .help("How much you have been reading")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button { model.showDiscover = true } label: { Label("Find Free Books", systemImage: "globe") }
                     .help("Search the open libraries (⇧⌘O)")
@@ -86,6 +105,39 @@ struct LibraryView: View {
             .frame(width: 360)
             .background(HierarchicalShapeStyle.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
         }
+    }
+
+    /// Tags to narrow the shelf by, and the order the books stand in.
+    private var shelfControls: some View {
+        HStack(spacing: 8) {
+            let tags = library.allTags
+            if !tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        chip("All", on: tag == nil) { tag = nil }
+                        ForEach(tags, id: \.self) { t in chip(t, on: tag == t) { tag = tag == t ? nil : t } }
+                    }
+                }
+            }
+            Spacer(minLength: 8)
+            Picker("Sort", selection: $orderName) {
+                ForEach(Library.Order.allCases) { Text($0.rawValue).tag($0.rawValue) }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .fixedSize()
+            .help("The order of the shelf")
+        }
+    }
+
+    private func chip(_ name: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(name).font(.system(size: 12))
+                .padding(.horizontal, 10).padding(.vertical, 4)
+                .background(on ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.06), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private var shelfResults: some View {
@@ -138,6 +190,9 @@ struct BookCard: View {
     @EnvironmentObject private var model: ReaderModel
     let entry: LibraryEntry
     @State private var hovering = false
+    @State private var namingTag = false
+    @State private var newTag = ""
+    @State private var confirmDelete = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -168,6 +223,9 @@ struct BookCard: View {
                 if entry.progress > 0.005 { Text("· \(Int((entry.progress * 100).rounded()))%") }
             }
             .font(.system(size: 11)).foregroundStyle(.secondary)
+            if !entry.labels.isEmpty {
+                Text(entry.labels.joined(separator: " · ")).font(.system(size: 10)).foregroundStyle(.tertiary).lineLimit(1)
+            }
             if !entry.exists {
                 Label("File missing", systemImage: "exclamationmark.triangle").font(.caption2).foregroundStyle(.orange)
             }
@@ -190,10 +248,136 @@ struct BookCard: View {
                 }
             }
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([entry.url]) }
+            Button("Choose Cover…") { model.coverPick = entry }
+            Menu("Tags") {
+                ForEach(library.allTags, id: \.self) { t in
+                    Toggle(t, isOn: Binding(get: { entry.labels.contains(t) }, set: { _ in library.toggleTag(entry.id, t) }))
+                }
+                if !library.allTags.isEmpty { Divider() }
+                Button("New Tag…") { newTag = ""; namingTag = true }
+            }
             Divider()
             Button("Remove from Library", role: .destructive) { library.remove(entry.id) }
+            if entry.isOwned {
+                Button("Remove and Delete File…", role: .destructive) { confirmDelete = true }
+            }
+        }
+        .alert("New Tag", isPresented: $namingTag) {
+            TextField("Name", text: $newTag)
+            Button("Add") {
+                let name = newTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty, !entry.labels.contains(name) { library.toggleTag(entry.id, name) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("A tag for “\(entry.title)”. Tags gather books into collections on the shelf.")
+        }
+        .confirmationDialog("Delete “\(entry.title)”?", isPresented: $confirmDelete) {
+            Button("Move File to Trash", role: .destructive) { library.remove(entry.id, deleteFile: true) }
+        } message: {
+            Text("The book leaves the shelf and the file Folio downloaded goes to the Trash.")
         }
         .help("\(entry.title)\n\(entry.words.formatted()) words · \(entry.format)")
     }
 
+}
+
+/// The books in progress, at the head of the shelf: one click carries on where you stopped.
+struct ContinueRow: View {
+    @EnvironmentObject private var model: ReaderModel
+    let entries: [LibraryEntry]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("CONTINUE READING").font(.system(size: 10, weight: .semibold)).tracking(1.4).foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(entries) { e in
+                    HStack(alignment: .center, spacing: 12) {
+                        EtherealCover(title: e.title, author: e.author, sky: e.sky, progress: e.progress,
+                                      bookmarks: e.bookmarks.count, animated: false)
+                            .frame(width: 62)
+                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(e.title).font(.system(size: 14, weight: .semibold, design: .serif)).lineLimit(2)
+                            if !e.author.isEmpty { Text(e.author).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
+                            ProgressView(value: min(1, max(0, e.progress))).controlSize(.small)
+                            Text("\(Int((e.progress * 100).rounded()))% · \(ContinueRow.left(e))")
+                                .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: 340, alignment: .leading)
+                    .background(HierarchicalShapeStyle.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                    .onTapGesture { model.open(e) }
+                    .help("Carry on with “\(e.title)”")
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    static func left(_ e: LibraryEntry) -> String {
+        if e.page != nil { return "page \((e.page ?? 0) + 1)" }       // pictures of pages: no words to time
+        let m = Int((Double(e.words) * (1 - e.progress) / 250).rounded())
+        if m < 1 { return "almost done" }
+        if m < 60 { return "\(m) min left" }
+        return "\(m / 60) h \(m % 60) min left"
+    }
+}
+
+/// Every sky there is, to choose a book's cover from by hand.
+struct CoverGallery: View {
+    @EnvironmentObject private var library: Library
+    @Environment(\.dismiss) private var dismiss
+    let entry: LibraryEntry
+    @State private var filter = ""
+
+    var body: some View {
+        let current = library.entry(entry.id)?.sky
+        var taken: [Int: String] = [:]
+        for e in library.entries where e.id != entry.id { if let s = e.sky { taken[s] = e.title } }
+        let q = filter.trimmingCharacters(in: .whitespaces)
+        let all = (0..<SkyCatalog.shared.count).filter { q.isEmpty || SkyCatalog.shared.field($0).name.localizedCaseInsensitiveContains(q) }
+        return VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Choose a Cover").font(.system(size: 20, weight: .bold, design: .serif))
+                    Text(entry.title).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                }
+                Spacer()
+                TextField("Constellation, asterism or object", text: $filter).textFieldStyle(.roundedBorder).frame(width: 240)
+                Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
+            }
+            .padding(18)
+            Divider()
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 112, maximum: 140), spacing: 16, alignment: .top)], spacing: 18) {
+                    ForEach(all, id: \.self) { i in
+                        VStack(spacing: 5) {
+                            EtherealCover(title: entry.title, author: entry.author, sky: i, animated: false)
+                                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                                .overlay {
+                                    if i == current { RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: 3).padding(-3) }
+                                }
+                                .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
+                            Text(SkyCatalog.shared.field(i).name).font(.system(size: 11)).lineLimit(1)
+                            if let other = taken[i] {
+                                Text("on “\(other)”").font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {         // as on the shelf: the cover watches the pointer itself, so a Button around it never fires
+                            library.setSky(entry.id, i)
+                            dismiss()
+                        }
+                    }
+                }
+                .padding(18)
+            }
+        }
+        .frame(minWidth: 720, idealWidth: 820, minHeight: 540, idealHeight: 680)
+    }
 }

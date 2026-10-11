@@ -64,6 +64,16 @@ typedef struct {
     uint32_t length;
 } rd_hit;
 
+/* A link inside the book (a footnote reference, a cross-reference). start/length are
+   UTF-8 byte offsets into the text of `block`; the link leads to to_chapter/to_block. */
+typedef struct {
+    int32_t  block;
+    uint32_t start;
+    uint32_t length;
+    int32_t  to_chapter;
+    int32_t  to_block;
+} rd_link;
+
 /* Open .epub, .txt, .md/.markdown, .html/.htm/.xhtml (a single HTML file is split into
    chapters at its <h1> headings). NULL on failure,
    with a human-readable reason written to err. */
@@ -80,6 +90,9 @@ const char *rd_chapter_title(const rd_book *b, int32_t ch);
 uint32_t    rd_chapter_text_len(const rd_book *b, int32_t ch);
 /* Returns the number of blocks and points *out at an array owned by the book. */
 int32_t     rd_chapter_blocks(const rd_book *b, int32_t ch, const rd_block **out);
+
+/* Links that start in a chapter, in block order; the array is owned by the book. */
+int32_t     rd_chapter_links(const rd_book *b, int32_t ch, const rd_link **out);
 
 int32_t     rd_toc_count(const rd_book *b);
 const char *rd_toc_title(const rd_book *b, int32_t i);

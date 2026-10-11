@@ -1,5 +1,7 @@
 import Foundation
+import AppKit
 import PDFKit
+import Vision
 
 /// A PDF read two ways: its original pages, and its text reflowed like any other book.
 /// The text is pulled out once, written as a small HTML file the engine can open, and kept in
@@ -18,7 +20,7 @@ struct PDFSource: Sendable {
 
     /// The page holding the text at `fraction` (0…1) of the way through the book.
     func page(atFraction fraction: Double) -> Int {
-        guard pageCount > 1, textLength > 0 else { return 0 }
+        guard pageCount > 1, textLength > 0, hasText else { return 0 }
         let target = Int((min(1, max(0, fraction)) * Double(textLength)).rounded())
         var lo = 0, hi = pageCount - 1                  // the last page starting at or before the target
         while lo < hi {
@@ -36,7 +38,13 @@ struct PDFSource: Sendable {
 
 enum PDFImport {
     /// Bump when the conversion changes, so old conversions are redone.
-    private static let version = 5
+    private static let version = 6
+
+    /// A line of text read off the picture of a page, in page space.
+    struct ScannedLine: Codable {
+        let text: String
+        let x, y, w, h: Double
+    }
 
     private struct Sidecar: Codable {
         let version: Int
@@ -46,25 +54,31 @@ enum PDFImport {
     }
 
     enum Failure: LocalizedError {
-        case unreadable, locked
+        case unreadable, locked, noText
         var errorDescription: String? {
             switch self {
+            case .noText: return "No text could be recognised on these pages."
             case .unreadable: return "This PDF could not be read."
             case .locked: return "This PDF is protected by a password."
             }
         }
     }
 
-    static func prepare(_ url: URL) throws -> PDFSource {
+    /// Where conversions are kept, and the name this file's conversion goes by: it changes when the file does.
+    static func cache(for url: URL) -> (folder: URL, name: String) {
         let fm = FileManager.default
         let folder = Library.home.appendingPathComponent("Converted", isDirectory: true)
         try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
-
         let attrs = try? fm.attributesOfItem(atPath: url.path)
         let stamp = "\(url.path)|\(attrs?[.size] as? Int ?? 0)|\((attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)"
         var hash: UInt64 = 0xCBF29CE484222325          // FNV-1a
         for b in stamp.utf8 { hash ^= UInt64(b); hash = hash &* 0x100000001B3 }
-        let name = String(hash, radix: 16)
+        return (folder, String(hash, radix: 16))
+    }
+
+    static func prepare(_ url: URL) throws -> PDFSource {
+        let fm = FileManager.default
+        let (folder, name) = cache(for: url)
         let html = folder.appendingPathComponent(name + ".html")
         let side = folder.appendingPathComponent(name + ".json")
 
@@ -78,11 +92,83 @@ enum PDFImport {
         var reflow = Reflow(doc, fallbackTitle: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " "))
         reflow.knownTitle = BookHints.title(of: url)
         reflow.knownAuthor = BookHints.author(of: url)
+        reflow.pictures = (folder, name + "-figures")
+        // Text recognised earlier on a scan's pages stands in for the text the file lacks.
+        if let data = try? Data(contentsOf: folder.appendingPathComponent(name + ".ocr.json")),
+           let scanned = try? JSONDecoder().decode([[ScannedLine]].self, from: data) {
+            reflow.scanned = scanned
+        }
         let result = reflow.run()
         try result.html.write(to: html, atomically: true, encoding: .utf8)
         let s = Sidecar(version: version, pageStarts: result.pageStarts, textLength: result.textLength, hasText: result.hasText)
         try JSONEncoder().encode(s).write(to: side, options: .atomic)
         return PDFSource(url: url, html: html, pageStarts: s.pageStarts, textLength: s.textLength, hasText: s.hasText)
+    }
+}
+
+extension PDFImport {
+    /// Reads the text off the pictures of a scanned PDF's pages (a few seconds a page, several pages at once),
+    /// keeps it beside the conversion, and converts the book again with it. `progress` is called with 0…1.
+    static func recognise(_ url: URL, progress: @escaping @Sendable (Double) -> Void) throws -> PDFSource {
+        guard let first = PDFDocument(url: url) else { throw Failure.unreadable }
+        let count = first.pageCount
+        let workers = max(1, min(4, ProcessInfo.processInfo.activeProcessorCount / 2, count))
+        let lock = NSLock()
+        var pages = [[ScannedLine]](repeating: [], count: count)
+        var done = 0
+        // Each worker reads its own copy of the file and takes every `workers`-th page.
+        DispatchQueue.concurrentPerform(iterations: workers) { w in
+            guard let doc = w == 0 ? first : PDFDocument(url: url) else { return }
+            for i in stride(from: w, to: count, by: workers) {
+                var lines: [ScannedLine] = []
+                autoreleasepool {
+                    guard let page = doc.page(at: i) else { return }
+                    let box = page.bounds(for: .cropBox)
+                    guard box.width > 1, box.height > 1 else { return }
+                    let scale = min(3, 2200 / max(box.width, box.height))
+                    guard let image = PageRender.context(page, box: box, rect: box, scale: scale, gray: true)?.makeImage() else { return }
+                    let request = VNRecognizeTextRequest()
+                    request.recognitionLevel = .accurate
+                    request.usesLanguageCorrection = true
+                    try? VNImageRequestHandler(cgImage: image).perform([request])
+                    for o in request.results ?? [] {
+                        guard let best = o.topCandidates(1).first, best.confidence > 0.25 else { continue }
+                        let b = o.boundingBox
+                        lines.append(ScannedLine(text: best.string, x: box.minX + b.minX * box.width, y: box.minY + b.minY * box.height,
+                                                 w: b.width * box.width, h: b.height * box.height))
+                    }
+                }
+                lock.lock()
+                pages[i] = lines
+                done += 1
+                let fraction = Double(done) / Double(max(1, count))
+                lock.unlock()
+                progress(fraction)
+            }
+        }
+        let letters = pages.reduce(0) { $0 + $1.reduce(0) { $0 + $1.text.count } }
+        guard letters >= max(40, count * 4) else { throw Failure.noText }
+        let (folder, name) = cache(for: url)
+        try JSONEncoder().encode(pages).write(to: folder.appendingPathComponent(name + ".ocr.json"), options: .atomic)
+        try? FileManager.default.removeItem(at: folder.appendingPathComponent(name + ".json"))
+        return try prepare(url)
+    }
+}
+
+/// Draws a page, or a part of one, into a bitmap.
+enum PageRender {
+    static func context(_ page: PDFPage, box: CGRect, rect: CGRect, scale: CGFloat, gray: Bool) -> CGContext? {
+        let w = Int((rect.width * scale).rounded(.up)), h = Int((rect.height * scale).rounded(.up))
+        guard w > 0, h > 0, w < 12000, h < 12000 else { return nil }
+        let space = gray ? CGColorSpaceCreateDeviceGray() : CGColorSpace(name: CGColorSpace.sRGB)!
+        let info = gray ? CGImageAlphaInfo.none.rawValue : CGImageAlphaInfo.noneSkipLast.rawValue
+        guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: space, bitmapInfo: info) else { return nil }
+        ctx.setFillColor(gray: 1, alpha: 1)
+        ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+        ctx.scaleBy(x: scale, y: scale)
+        ctx.translateBy(x: -(rect.minX - box.minX), y: -(rect.minY - box.minY))
+        page.draw(with: .cropBox, to: ctx)
+        return ctx
     }
 }
 
@@ -102,6 +188,10 @@ private struct Reflow {
     /// From the catalogue the file was downloaded from; better than what PDFs say of themselves.
     var knownTitle: String?
     var knownAuthor: String?
+    /// Text recognised on a scan's pages, used in place of the text the PDF lacks.
+    var scanned: [[PDFImport.ScannedLine]]?
+    /// Where pictures cut out of the pages are saved: a folder, and the name of a folder inside it.
+    var pictures: (folder: URL, name: String)?
 
     init(_ doc: PDFDocument, fallbackTitle: String) {
         self.doc = doc
@@ -118,7 +208,12 @@ private struct Reflow {
             let box = page.bounds(for: .cropBox)
             boxes.append(box)
             var lines: [Line] = []
-            if let all = page.selection(for: box) {
+            if let scanned {
+                for l in scanned[safe: i] ?? [] {
+                    let text = Reflow.clean(l.text)
+                    if !text.isEmpty { lines.append(Line(text: text, box: CGRect(x: l.x, y: l.y, width: l.w, height: l.h))) }
+                }
+            } else if let all = page.selection(for: box) {
                 for sel in all.selectionsByLine() {
                     let text = Reflow.clean(sel.string ?? "")
                     if text.isEmpty { continue }
@@ -147,7 +242,8 @@ private struct Reflow {
         markRunningHeads(&pages, boxes)
         let body = bodyHeight(pages)
         let marks = outline()
-        var elements = paragraphs(pages, body: body, marks: marks)
+        let figures = scanned == nil ? self.figures(pages, boxes, body: body) : [:]
+        var elements = paragraphs(pages, body: body, marks: marks, figures: figures)
         chapters(&elements, pageCount: count, outlined: !marks.isEmpty)
 
         var starts = [Int](repeating: 0, count: count)
@@ -155,6 +251,12 @@ private struct Reflow {
         var running = 0, next = 0
         for e in elements {
             while next < count && next <= e.page { starts[next] = running; next += 1 }
+            if e.tag == "img" {
+                out += "<img src=\"\(Reflow.escape(e.text))\">\n"
+                // the engine counts a picture by the length of its full path
+                running += (pictures?.folder.path.utf8.count ?? 0) + 1 + e.text.utf8.count
+                continue
+            }
             out += "<\(e.tag)>\(Reflow.escape(e.text))</\(e.tag)>\n"
             running += e.text.utf8.count
         }
@@ -240,10 +342,105 @@ private struct Reflow {
         return marks
     }
 
+    // MARK: Pictures
+
+    /// A scan with recognised text laid invisibly over it: every page is one photograph of itself.
+    /// Whatever lies between its lines of text is more of the photograph, not a figure.
+    private func isScan() -> Bool {
+        var looked = 0, photographs = 0
+        for i in stride(from: 0, to: doc.pageCount, by: max(1, doc.pageCount / 8)) {
+            guard let ref = doc.page(at: i)?.pageRef, let dict = ref.dictionary else { continue }
+            looked += 1
+            var resources: CGPDFDictionaryRef?, objects: CGPDFDictionaryRef?
+            guard CGPDFDictionaryGetDictionary(dict, "Resources", &resources), let resources,
+                  CGPDFDictionaryGetDictionary(resources, "XObject", &objects), let objects else { continue }
+            var big = 0
+            CGPDFDictionaryApplyBlock(objects, { _, object, info in
+                var stream: CGPDFStreamRef?
+                guard CGPDFObjectGetValue(object, .stream, &stream), let stream, let d = CGPDFStreamGetDictionary(stream) else { return true }
+                var w: CGPDFInteger = 0, h: CGPDFInteger = 0
+                var kind: UnsafePointer<CChar>?
+                if CGPDFDictionaryGetName(d, "Subtype", &kind), let kind, String(cString: kind) == "Image",
+                   CGPDFDictionaryGetInteger(d, "Width", &w), CGPDFDictionaryGetInteger(d, "Height", &h), w >= 900, h >= 1200 {
+                    info?.assumingMemoryBound(to: Int.self).pointee += 1
+                }
+                return true
+            }, &big)
+            if big >= 1 { photographs += 1 }
+        }
+        return looked > 0 && photographs * 5 >= looked * 3
+    }
+
+    /// Figures, plates and diagrams: the stretches of a page between its lines of text that are not blank.
+    /// Each is cut out of the page as a picture, to be set between the paragraphs it sat between.
+    private func figures(_ pages: [[Line]], _ boxes: [CGRect], body: CGFloat) -> [Int: [(top: CGFloat, src: String)]] {
+        guard let pictures, pages.count <= 2000, !isScan() else { return [:] }
+        let folder = pictures.folder.appendingPathComponent(pictures.name, isDirectory: true)
+        try? FileManager.default.removeItem(at: folder)
+        var out: [Int: [(top: CGFloat, src: String)]] = [:]
+        var made = 0
+        let least = max(body * 5, 64)
+        for (p, all) in pages.enumerated() where made < 600 {
+            let box = boxes[p]
+            guard box.width > 40, box.height > 40, let page = doc.page(at: p) else { continue }
+            // the stretches of the page's height that text occupies, top to bottom
+            let spans = all.map { (top: $0.box.maxY, bottom: $0.box.minY) }.sorted { $0.top > $1.top }
+            var gaps: [(top: CGFloat, bottom: CGFloat)] = []
+            var edge = box.maxY - box.height * 0.035
+            for s in spans {
+                if edge - s.top >= least { gaps.append((edge, s.top)) }
+                edge = min(edge, s.bottom)
+            }
+            let foot = box.minY + box.height * 0.035
+            if edge - foot >= least { gaps.append((edge, foot)) }
+            if gaps.isEmpty { continue }
+
+            let scale: CGFloat = 0.5
+            guard let ctx = PageRender.context(page, box: box, rect: box, scale: scale, gray: true), let data = ctx.data else { continue }
+            let w = ctx.width, h = ctx.height, row = ctx.bytesPerRow
+            let px = data.bindMemory(to: UInt8.self, capacity: row * h)
+            for g in gaps {
+                // bitmap rows run from the top of the page down
+                let r0 = max(0, Int(((box.maxY - g.top) * scale).rounded(.up)) + 1)
+                let r1 = min(h, Int(((box.maxY - g.bottom) * scale).rounded(.down)) - 1)
+                if r1 - r0 < 8 { continue }
+                var ink = 0, x0 = w, x1 = -1, y0 = h, y1 = -1
+                for y in r0..<r1 {
+                    let line = px + y * row
+                    for x in 0..<w where line[x] < 205 {
+                        ink += 1
+                        if x < x0 { x0 = x }
+                        if x > x1 { x1 = x }
+                        if y < y0 { y0 = y }
+                        if y > y1 { y1 = y }
+                    }
+                }
+                guard x1 > x0, y1 > y0 else { continue }
+                let width = CGFloat(x1 - x0) / scale, height = CGFloat(y1 - y0) / scale
+                // a rule, a stray mark or a page number is not a picture
+                guard width >= 60, height >= 40, Double(ink) >= Double((x1 - x0) * (y1 - y0)) * 0.012 else { continue }
+                let rect = CGRect(x: box.minX + CGFloat(x0) / scale - 3, y: box.maxY - CGFloat(y1) / scale - 3,
+                                  width: width + 6, height: height + 6).intersection(box)
+                let fine = min(3, max(1, 1500 / rect.width))
+                guard let cut = PageRender.context(page, box: box, rect: rect, scale: fine, gray: false)?.makeImage(),
+                      let png = NSBitmapImageRep(cgImage: cut).representation(using: .png, properties: [:]) else { continue }
+                try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let file = "p\(p + 1)-\(out[p]?.count ?? 0).png"
+                guard (try? png.write(to: folder.appendingPathComponent(file))) != nil else { continue }
+                out[p, default: []].append((rect.maxY, pictures.name + "/" + file))
+                made += 1
+            }
+        }
+        return out
+    }
+
     // MARK: Paragraphs
 
-    private func paragraphs(_ pages: [[Line]], body: CGFloat, marks: [Int: [Mark]]) -> [Element] {
+    private func paragraphs(_ pages: [[Line]], body: CGFloat, marks: [Int: [Mark]],
+                            figures: [Int: [(top: CGFloat, src: String)]] = [:]) -> [Element] {
         var out: [Element] = []
+        var waiting: [Element] = []             // pictures met mid-paragraph, set after it
+        let loose = scanned != nil              // recognised text: line heights wobble, so only clear headings count
         var para = "", paraPage = 0
         var heading = "", headingPage = 0, headingBig = false, headingSize: CGFloat = 0
         var echo = "", echoLeft = 0             // the outline title just written, so its printed twin is dropped
@@ -251,6 +448,8 @@ private struct Reflow {
         func flushPara() {
             if !para.isEmpty { out.append(Element(tag: "p", text: para, page: paraPage)) }
             para = ""
+            out += waiting
+            waiting = []
         }
         func flushHeading() {
             if !heading.isEmpty { out.append(Element(tag: headingBig ? "h1" : "h2", text: heading, page: headingPage, size: headingSize)) }
@@ -286,8 +485,14 @@ private struct Reflow {
             if ends(para) { flushPara() }
             flushHeading()
             var prev: Line?
+            var pics = (figures[p] ?? []).sorted { $0.top > $1.top }
+            func picture(_ src: String) {
+                let e = Element(tag: "img", text: src, page: p)
+                if para.isEmpty { flushHeading(); out.append(e) } else { waiting.append(e) }
+            }
 
             for line in lines {
+                while let f = pics.first, f.top >= line.box.maxY - 1 { pics.removeFirst(); picture(f.src) }
                 while let m = pending.first, m.y == nil || line.box.maxY <= m.y! + body * 0.6 {
                     pending.removeFirst()
                     flushPara(); flushHeading()
@@ -307,7 +512,7 @@ private struct Reflow {
                 let words = line.text.split(separator: " ").count
                 let numeric = line.text.unicodeScalars.allSatisfy { !CharacterSet.letters.contains($0) }
                 let letters = line.text.unicodeScalars.filter { CharacterSet.letters.contains($0) }.count
-                let big = line.box.height >= body * 1.22 && words <= 14 && !numeric && letters >= 3
+                let big = line.box.height >= body * (loose ? 1.6 : 1.22) && words <= (loose ? 9 : 14) && !numeric && letters >= 3
                 let named = line.box.width < width * 0.7 && Reflow.chapterLike(line.text)
                 if marks.isEmpty && (big || named) {
                     flushPara()
@@ -335,6 +540,7 @@ private struct Reflow {
                 join(&para, line.text)
                 prev = line
             }
+            for f in pics { picture(f.src) }
             for m in pending {                  // destinations below the last line of the page
                 flushPara(); flushHeading()
                 out.append(Element(tag: m.level == 0 ? "h1" : "h2", text: m.title, page: p))
@@ -397,7 +603,7 @@ private struct Reflow {
         var out = String.UnicodeScalarView()
         var space = false
         for u in s.unicodeScalars {
-            if u == "\u{AD}" { continue }                                   // soft hyphen
+            if u == "\u{AD}" || u == "\u{FFFC}" { continue }               // soft hyphen; the stand-in for an inline picture
             if CharacterSet.whitespacesAndNewlines.contains(u) || CharacterSet.controlCharacters.contains(u) {
                 space = true
                 continue

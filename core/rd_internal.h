@@ -55,6 +55,7 @@ typedef struct {
     rd_block *blocks; int nblocks, capblocks;
     anchor   *anchors; int nanchors, capanchors;
     uint32_t  text_len;
+    rd_link  *links; char **hrefs; int nlinks, caplinks;   /* hrefs[i] is dropped once links[i] is resolved */
 } chapter;
 
 typedef struct { char *title; int chapter, block, depth; char *href; } tocent;
@@ -87,6 +88,8 @@ typedef struct {
     int pending_space;
     const char *dir;                /* for resolving relative image paths */
     char **pend; int npend, cappend;/* anchors waiting for their block */
+    char *link_href; uint32_t link_start;                 /* an <a href> that is still open */
+    struct plink { uint32_t start, length; char *href; } *plinks; int nplinks, capplinks;
 } builder;
 
 void bld_init(builder *h, rd_book *book, chapter *c, const char *dir);
@@ -99,6 +102,9 @@ void bld_flush(builder *h);
 void bld_rule(builder *h);
 void bld_image(builder *h, const char *path);
 void bld_anchor(builder *h, const char *id);
+void bld_link_open(builder *h, const char *href);
+void bld_link_close(builder *h);
+void chapter_add_link(chapter *c, int block, uint32_t start, uint32_t length, char *href);
 
 /* Parse an (X)HTML document into chapter c. */
 void html_to_chapter(rd_book *b, chapter *c, const char *html, size_t n, const char *dir,

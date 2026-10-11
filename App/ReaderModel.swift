@@ -3,7 +3,7 @@ import SwiftUI
 
 enum ReaderRole { case window, float }
 enum SidebarTab: String, CaseIterable, Identifiable {
-    case contents = "Contents", search = "Search", bookmarks = "Bookmarks"
+    case contents = "Contents", search = "Search", bookmarks = "Bookmarks", notes = "Notes"
     var id: String { rawValue }
 }
 
@@ -32,11 +32,23 @@ final class ReaderModel: ObservableObject {
     /// Page in view (from 0) while reading original pages.
     @Published private(set) var page = 0
 
+    // Highlights, notes and looking things up
+    @Published var noteDraft: Highlight?
+    @Published var lookUp: LookUpTerm?
+    /// The open book's highlights by chapter and block, for painting them on the page.
+    @Published private(set) var markIndex: [Int: [Int: [Highlight]]] = [:]
+    /// How far the recognition of a scanned PDF's text has got (0…1), while it runs.
+    @Published var recognising: Double?
+    /// When the reader last moved; the reading clock stops when this goes stale.
+    private(set) var lastActivity = Date.distantPast
+
     // Chrome
     @Published private(set) var isFloating = false
     @Published var sidebarTab: SidebarTab = .contents
     @Published var showImporter = false
     @Published var showDiscover = false
+    @Published var showStats = false
+    @Published var coverPick: LibraryEntry?
     @Published private(set) var searchFocusToken = UUID()
 
     // Search
@@ -66,8 +78,8 @@ final class ReaderModel: ObservableObject {
         }
     }
 
-    func open(_ entry: LibraryEntry, at target: (chapter: Int, block: Int)? = nil) {
-        if entryID == entry.id, book != nil {
+    func open(_ entry: LibraryEntry, at target: (chapter: Int, block: Int)? = nil, reloadAtPage: Int? = nil) {
+        if entryID == entry.id, book != nil, reloadAtPage == nil {
             if let target { go(chapter: target.chapter, block: target.block) }
             if !query.trimmingCharacters(in: .whitespaces).isEmpty { runSearch(immediate: true) }
             return
@@ -88,18 +100,23 @@ final class ReaderModel: ObservableObject {
                 book = b
                 entryID = entry.id
                 hits = []; hitIndex = [:]; selectedHit = nil; hitsTruncated = false
+                var target = target
+                if let reloadAtPage { target = b.place(page: reloadAtPage) }
                 let ch = min(max(0, target?.chapter ?? entry.chapter), max(0, b.chapterCount - 1))
                 chapter = ch
                 position = target?.block ?? entry.block
+                lastActivity = Date()
                 jumpAnchor = .top
                 jumpBlock = position
                 if let pdf = b.pdf {
                     showsOriginal = !pdf.hasText || (entry.original ?? true)
-                    page = b.page(chapter: ch, block: position)
+                    page = pdf.hasText ? b.page(chapter: ch, block: position) : min(max(0, reloadAtPage ?? entry.page ?? 0), max(0, pdf.pageCount - 1))
                 } else {
                     showsOriginal = false
                 }
                 jumpToken = UUID()
+                refreshMarks()
+                if entry.words != b.wordCount { Library.shared.setWords(entry.id, b.wordCount) }
                 Library.shared.touch(entry.id)
                 updateProgress()
                 if !query.trimmingCharacters(in: .whitespaces).isEmpty { runSearch(immediate: true) }
@@ -109,7 +126,9 @@ final class ReaderModel: ObservableObject {
 
     func closeBook() {
         savePosition()
+        Narrator.shared.stop()
         if isFloating { exitFloat() }
+        markIndex = [:]
         book = nil
         entryID = nil
         showsOriginal = false
@@ -129,8 +148,42 @@ final class ReaderModel: ObservableObject {
         jumpAnchor = anchor
         jumpBlock = position
         jumpToken = UUID()
+        lastActivity = Date()
         updateProgress()
         savePosition()
+    }
+
+    /// Brings the paragraph being read aloud into view.
+    func follow(chapter c: Int, block: Int) {
+        if c == chapter && block == position { lastActivity = Date(); return }
+        go(chapter: c, block: block, anchor: UnitPoint(x: 0.5, y: 0.2))
+    }
+
+    func refreshMarks() {
+        var index: [Int: [Int: [Highlight]]] = [:]
+        for m in entry?.marks ?? [] { index[m.chapter, default: [:]][m.block, default: []].append(m) }
+        markIndex = index
+    }
+
+    /// Reads the text off the pictures of a scanned PDF's pages, then opens it again with text to reflow and search.
+    func recogniseText() {
+        guard let book, let pdf = book.pdf, !pdf.hasText, recognising == nil, let entry else { return }
+        recognising = 0
+        let url = pdf.url
+        let at = page
+        Task {
+            let ok = await Task.detached(priority: .userInitiated) {
+                (try? PDFImport.recognise(url) { f in Task { @MainActor in
+                    if ReaderModel.shared.recognising != nil { ReaderModel.shared.recognising = f }
+                } }) != nil
+            }.value
+            recognising = nil
+            if ok, entryID == entry.id {
+                open(entry, reloadAtPage: at)
+            } else if !ok {
+                errorMessage = "No text could be recognised on these pages."
+            }
+        }
     }
 
     func nextChapter() { go(chapter: chapter + 1) }
@@ -140,6 +193,7 @@ final class ReaderModel: ObservableObject {
     func noteVisible(_ block: Int, from role: ReaderRole) {
         guard role == (isFloating ? .float : .window), block != position else { return }
         position = block
+        lastActivity = Date()
         updateProgress()
         if let entryID { Library.shared.setPosition(entryID, chapter: chapter, block: position, progress: progress) }
     }
@@ -163,7 +217,13 @@ final class ReaderModel: ObservableObject {
     /// Called by the original pages as they scroll.
     func notePage(_ p: Int, from role: ReaderRole) {
         guard showsOriginal, role == (isFloating ? .float : .window), let book else { return }
-        if p != page { page = p }
+        if p != page { page = p; lastActivity = Date() }
+        if book.pdf?.hasText == false {
+            // only pictures of pages: the page itself is the place
+            updateProgress()
+            if let entryID { Library.shared.setPage(entryID, p, progress: progress) }
+            return
+        }
         // Several places in the text share a page; leave the position alone while it is still on this one.
         if book.page(chapter: chapter, block: position) == p { return }
         let place = book.place(page: p)
@@ -174,6 +234,11 @@ final class ReaderModel: ObservableObject {
     }
 
     private func updateProgress() {
+        if let pdf = book?.pdf, !pdf.hasText {
+            let p = pdf.pageCount > 1 ? Double(page) / Double(pdf.pageCount - 1) : 0
+            if abs(p - progress) > 0.0005 { progress = p }
+            return
+        }
         guard let book, book.totalLength > 0, chapter < book.chapterCount else { progress = 0; return }
         let count = max(1, book.blocks(chapter).count)
         let p = (Double(book.chapterStarts[chapter]) + Double(book.chapterLengths[chapter]) * Double(position) / Double(count))

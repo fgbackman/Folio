@@ -4,6 +4,7 @@ import SwiftUI
 struct BookTextView: View {
     let role: ReaderRole
     @EnvironmentObject private var model: ReaderModel
+    @ObservedObject private var narrator = Narrator.shared
 
     @AppStorage(Keys.fontSize) private var fontSize: Double = 19
     @AppStorage(Keys.floatFontSize) private var floatFontSize: Double = 16
@@ -12,6 +13,7 @@ struct BookTextView: View {
     @AppStorage(Keys.floatTheme) private var floatThemeName = ""
     @AppStorage(Keys.lineGap) private var lineGap: Double = 0.38
     @AppStorage(Keys.columnWidth) private var columnWidth: Double = 680
+    @AppStorage(Keys.pagedTurns) private var pagedTurns = false
 
     @State private var topBlock: Int?
 
@@ -25,7 +27,9 @@ struct BookTextView: View {
         if let book = model.book {
             let chapter = min(model.chapter, max(0, book.chapterCount - 1))
             let blocks = book.blocks(chapter)
-            let marks = model.hitIndex[chapter] ?? [:]
+            let hits = model.hitIndex[chapter] ?? [:]
+            let marks = model.markIndex[chapter] ?? [:]
+            let aloud = narrator.chapter == chapter ? narrator.block : -1
             let font = ReaderFont(rawValue: fontName) ?? .newYork
             let theme = self.theme
             ScrollViewReader { proxy in
@@ -33,7 +37,9 @@ struct BookTextView: View {
                     LazyVStack(alignment: .leading, spacing: size * 0.85) {
                         ForEach(blocks) { block in
                             BlockView(block: block, book: book, size: size, font: font, theme: theme,
-                                      lineGap: lineGap, hits: marks[block.index] ?? [], selected: model.selectedHit)
+                                      lineGap: lineGap, hits: hits[block.index] ?? [], selected: model.selectedHit,
+                                      marks: marks[block.index] ?? [],
+                                      aloud: block.index == aloud, spoken: block.index == aloud ? narrator.spoken : nil)
                                 .id(block.index)
                         }
                         ChapterFooter(book: book, chapter: chapter, size: size, font: font, theme: theme)
@@ -44,8 +50,10 @@ struct BookTextView: View {
                     .padding(.bottom, 48)
                     .frame(maxWidth: role == .float ? CGFloat.infinity : CGFloat(columnWidth) + 112)
                     .frame(maxWidth: .infinity)
+                    .background(ScrollGrabber(role: role, overlap: size * 1.6))
                 }
-                .scrollIndicators(role == .float ? .never : .automatic)   // .never also beats "Show scroll bars: Always"
+                // .never also beats "Show scroll bars: Always"
+                .scrollIndicators(role == .float || pagedTurns ? .never : .automatic)
                 .scrollPosition(id: $topBlock, anchor: .top)
                 .id(chapter)
                 .task(id: model.jumpToken) {
@@ -67,6 +75,14 @@ struct BookTextView: View {
     }
 }
 
+/// What a link in the text leads to, shown beside it instead of leaving the page.
+struct Footnote: Identifiable {
+    let id = UUID()
+    let text: String
+    let chapter: Int
+    let block: Int
+}
+
 struct BlockView: View {
     let block: Block
     let book: Book
@@ -76,11 +92,67 @@ struct BlockView: View {
     let lineGap: Double
     let hits: [SearchHit]
     let selected: SearchHit?
+    var marks: [Highlight] = []
+    var aloud = false
+    var spoken: Range<Int>?
 
-    private var content: AttributedString { block.attributed(hits: hits, selected: selected, theme: theme) }
+    @State private var footnote: Footnote?
+
+    private var content: AttributedString {
+        block.attributed(hits: hits, selected: selected, theme: theme, marks: marks, spoken: spoken)
+    }
     private var spacing: CGFloat { size * CGFloat(lineGap) }
 
     var body: some View {
+        let notes = marks.compactMap(\.note)
+        core
+            .background {
+                if aloud { RoundedRectangle(cornerRadius: 5).fill(theme.text.opacity(0.05)).padding(-size * 0.35) }
+            }
+            .overlay(alignment: .topTrailing) {
+                if !notes.isEmpty {
+                    Image(systemName: "note.text")
+                        .font(.system(size: max(10, size * 0.6)))
+                        .foregroundStyle(theme.secondary)
+                        .offset(x: size * 1.5)
+                        .help(notes.joined(separator: "\n\n"))
+                        .onTapGesture { ReaderModel.shared.noteDraft = marks.first { $0.note != nil } }
+                }
+            }
+            .environment(\.openURL, OpenURLAction { url in
+                guard url.scheme == "folio-link", let i = Int(url.host ?? ""), let link = block.links[safe: i] else { return .systemAction }
+                if book.isHeading(chapter: link.chapter, block: link.target) {
+                    ReaderModel.shared.go(chapter: link.chapter, block: link.target)      // a contents page, a "see chapter 4"
+                } else {
+                    footnote = Footnote(text: book.passage(chapter: link.chapter, block: link.target), chapter: link.chapter, block: link.target)
+                }
+                return .handled
+            })
+            .popover(item: $footnote, arrowEdge: .bottom) { note in
+                VStack(alignment: .leading, spacing: 10) {
+                    ScrollView {
+                        Text(note.text)
+                            .font(font.font(size: min(size, 15)))
+                            .lineSpacing(3)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 260)
+                    HStack {
+                        Spacer()
+                        Button("Go There") {
+                            footnote = nil
+                            ReaderModel.shared.go(chapter: note.chapter, block: note.block)
+                        }
+                        .controlSize(.small)
+                    }
+                }
+                .padding(14)
+                .frame(width: 360)
+            }
+    }
+
+    @ViewBuilder private var core: some View {
         switch block.kind {
         case .rule:
             Text("⁂")

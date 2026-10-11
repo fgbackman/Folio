@@ -13,6 +13,14 @@ enum Keys {
     static let floatTheme = "floatTheme"
     static let animateCovers = "animateCovers"
     static let liveSpaceWeather = "liveSpaceWeather"
+    static let tintPages = "tintPages"
+    static let twoPages = "twoPages"
+    static let pagedTurns = "pagedTurns"
+    static let voice = "voice"
+    static let voiceRate = "voiceRate"
+    static let shelfOrder = "shelfOrder"
+    static let syncShelf = "syncShelf"
+    static let finderCovers = "finderCovers"
 }
 
 enum Theme: String, CaseIterable, Identifiable {

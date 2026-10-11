@@ -370,6 +370,8 @@ static void split_at_h1(rd_book *b) {
 
     rd_block *blocks = src->blocks; int n = src->nblocks;
     anchor *anchors = src->anchors; int na = src->nanchors;
+    rd_link *links = src->links; char **hrefs = src->hrefs; int nl = src->nlinks, l = 0;
+    src->links = NULL; src->hrefs = NULL; src->nlinks = src->caplinks = 0;
     src->blocks = NULL; src->nblocks = src->capblocks = 0;
     src->anchors = NULL; src->nanchors = src->capanchors = 0;
     src->text_len = 0;
@@ -391,9 +393,12 @@ static void split_at_h1(rd_book *b) {
             }
             c->anchors[c->nanchors++] = (anchor){anchors[a].id, c->nblocks - 1};
         }
+        for (; l < nl && links[l].block <= k; l++)
+            chapter_add_link(c, c->nblocks - 1, links[l].start, links[l].length, hrefs[l]);
     }
     for (; a < na; a++) free(anchors[a].id);
-    free(blocks); free(anchors);
+    for (; l < nl; l++) free(hrefs[l]);
+    free(blocks); free(anchors); free(links); free(hrefs);
 }
 
 int load_html(rd_book *b, const char *fallback_title) {
