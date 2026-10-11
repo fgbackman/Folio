@@ -39,7 +39,7 @@ struct LibraryView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 360)
                 } else {
-                    let unfinished = library.unfinished(3)
+                    let unfinished = library.atHand(4)
                     if !unfinished.isEmpty, tag == nil, filter.trimmingCharacters(in: .whitespaces).isEmpty {
                         ContinueRow(entries: unfinished)
                     }
@@ -287,33 +287,39 @@ struct ContinueRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("CONTINUE READING").font(.system(size: 10, weight: .semibold)).tracking(1.4).foregroundStyle(.secondary)
-            HStack(alignment: .top, spacing: 16) {
-                ForEach(entries) { e in
-                    HStack(alignment: .center, spacing: 12) {
-                        EtherealCover(title: e.title, author: e.author, sky: e.sky, progress: e.progress,
-                                      bookmarks: e.bookmarks.count, animated: false)
-                            .frame(width: 62)
-                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                            .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(e.title).font(.system(size: 14, weight: .semibold, design: .serif)).lineLimit(2)
-                            if !e.author.isEmpty { Text(e.author).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
-                            ProgressView(value: min(1, max(0, e.progress))).controlSize(.small)
-                            Text("\(Int((e.progress * 100).rounded()))% · \(ContinueRow.left(e))")
-                                .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit()
-                        }
-                        Spacer(minLength: 0)
+            // as many cards as the window has room for, sharing its width equally
+            ViewThatFits(in: .horizontal) {
+                ForEach((1...max(1, entries.count)).reversed(), id: \.self) { n in
+                    HStack(alignment: .top, spacing: 16) {
+                        ForEach(entries.prefix(n)) { card($0) }
                     }
-                    .padding(12)
-                    .frame(maxWidth: 340, alignment: .leading)
-                    .background(HierarchicalShapeStyle.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
-                    .onTapGesture { model.open(e) }
-                    .help("Carry on with “\(e.title)”")
                 }
-                Spacer(minLength: 0)
             }
         }
+    }
+
+    private func card(_ e: LibraryEntry) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            EtherealCover(title: e.title, author: e.author, sky: e.sky, progress: e.progress,
+                          bookmarks: e.bookmarks.count, animated: false)
+                .frame(width: 62)
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(e.title).font(.system(size: 14, weight: .semibold, design: .serif)).lineLimit(2)
+                if !e.author.isEmpty { Text(e.author).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
+                ProgressView(value: min(1, max(0, e.progress))).controlSize(.small)
+                Text(e.progress > 0.005 ? "\(Int((e.progress * 100).rounded()))% · \(ContinueRow.left(e))" : "Not started")
+                    .font(.system(size: 11)).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(minWidth: 200, idealWidth: 200, maxWidth: .infinity, alignment: .leading)   // the ideal width is what ViewThatFits measures
+        .background(HierarchicalShapeStyle.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .onTapGesture { model.open(e) }
+        .help(e.progress > 0.005 ? "Carry on with “\(e.title)”" : "Start “\(e.title)”")
     }
 
     static func left(_ e: LibraryEntry) -> String {

@@ -165,6 +165,17 @@ final class Library: ObservableObject {
             .sorted { $0.lastOpened! > $1.lastOpened! }.prefix(n))
     }
 
+    /// The books to keep within reach at the top of the shelf: those begun and not finished, then the
+    /// rest by how lately they were opened or added. Finished books are left out. Empty if nothing is begun.
+    func atHand(_ n: Int) -> [LibraryEntry] {
+        var out = unfinished(n)
+        guard !out.isEmpty, out.count < n else { return out }
+        let have = Set(out.map(\.id))
+        out += entries.filter { !have.contains($0.id) && $0.progress < 0.985 && $0.exists }
+            .sorted { ($0.lastOpened ?? $0.added) > ($1.lastOpened ?? $1.added) }.prefix(n - out.count)
+        return out
+    }
+
     func recent(_ n: Int) -> [LibraryEntry] {
         Array(entries.filter { $0.lastOpened != nil }.sorted { $0.lastOpened! > $1.lastOpened! }.prefix(n))
     }
