@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 struct LibraryView: View {
@@ -10,6 +14,9 @@ struct LibraryView: View {
     @State private var shelfQuery = ""
     @State private var dropTargeted = false
     @State private var tag: String?
+    #if !os(macOS)
+    @State private var showSettings = false
+    #endif
     @AppStorage(Keys.pdfAsText) private var pdfAsText = false
     @AppStorage(Keys.ownCovers) private var ownCovers = false
     @AppStorage(Keys.shelfOrder) private var orderName = Library.Order.recent.rawValue
@@ -34,7 +41,11 @@ struct LibraryView: View {
                     ContentUnavailableView {
                         Label("Your shelf is empty", systemImage: "books.vertical")
                     } description: {
+                        #if os(macOS)
                         Text("Drop EPUB, PDF, text, Markdown or HTML books here, or press ⌘O.")
+                        #else
+                        Text("Add EPUB, PDF, text, Markdown or HTML books from Files, or find free ones.")
+                        #endif
                     } actions: {
                         Button("Open a Book…") { model.showImporter = true }.buttonStyle(.borderedProminent)
                         Button("Find Free Books…") { model.showDiscover = true }
@@ -53,7 +64,7 @@ struct LibraryView: View {
                 }
                 if !shelfQuery.isEmpty { shelfResults }
             }
-            .padding(32)
+            .padding(Layout.shelfMargin)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay {
@@ -75,41 +86,82 @@ struct LibraryView: View {
         }
         .sheet(item: $model.coverPick) { CoverGallery(entry: $0).environmentObject(library) }
         .onChange(of: library.allTags) { _, tags in if let tag, !tags.contains(tag) { self.tag = nil } }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) { searchField }
-            if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
-            ToolbarItem(placement: .primaryAction) {
-                Text("\(library.entries.count) book\(library.entries.count == 1 ? "" : "s")")
-                    .foregroundStyle(.secondary).padding(.horizontal, 10)
+        #if os(macOS)
+        .toolbar { shelfToolbar }
+        #else
+        .toolbar { shelfToolbar }
+        .searchable(text: $filter, prompt: "Titles, authors, tags")
+        .onSubmit(of: .search) { searchShelf() }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                ReadingSettings(showFloat: false)
+                    .navigationTitle("Reading")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showSettings = false } } }
             }
-            if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
-            ToolbarItem(placement: .primaryAction) {
-                Button { ownCovers.toggle() } label: {
-                    Label(ownCovers ? "Show Sky Covers" : "Show Original Covers", systemImage: ownCovers ? "moon.stars" : "photo")
-                }
-                .help(ownCovers ? "Showing the covers the books came with. Click for the sky covers."
-                                : "Showing the sky covers. Click for the covers the books came with.")
+            .presentationDetents([.medium, .large])
+        }
+        #endif
+    }
+
+    #if os(macOS)
+    @ToolbarContentBuilder private var shelfToolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) { searchField }
+        if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
+        ToolbarItem(placement: .primaryAction) {
+            Text("\(library.entries.count) book\(library.entries.count == 1 ? "" : "s")")
+                .foregroundStyle(.secondary).padding(.horizontal, 10)
+        }
+        if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
+        ToolbarItem(placement: .primaryAction) {
+            Button { ownCovers.toggle() } label: {
+                Label(ownCovers ? "Show Sky Covers" : "Show Original Covers", systemImage: ownCovers ? "moon.stars" : "photo")
             }
-            ToolbarItem(placement: .primaryAction) {
-                Button { pdfAsText.toggle(); library.setAllOriginal(!pdfAsText) } label: {
-                    Label(pdfAsText ? "PDFs Open as Text" : "PDFs Open as Pages", systemImage: pdfAsText ? "text.alignleft" : "doc.richtext")
-                }
-                .help(pdfAsText ? "PDFs open as reflowed text. Click to open them as their original pages."
-                                : "PDFs open as their original pages. Click to open them as reflowed text.")
+            .help(ownCovers ? "Showing the covers the books came with. Click for the sky covers."
+                            : "Showing the sky covers. Click for the covers the books came with.")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { pdfAsText.toggle(); library.setAllOriginal(!pdfAsText) } label: {
+                Label(pdfAsText ? "PDFs Open as Text" : "PDFs Open as Pages", systemImage: pdfAsText ? "text.alignleft" : "doc.richtext")
             }
-            ToolbarItem(placement: .primaryAction) {
-                Button { model.showStats = true } label: { Label("Reading", systemImage: "chart.bar") }
-                    .help("How much you have been reading")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button { model.showDiscover = true } label: { Label("Find Free Books", systemImage: "globe") }
-                    .help("Search the open libraries (⇧⌘O)")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button { model.showImporter = true } label: { Label("Add Books", systemImage: "plus") }.help("Add books (⌘O)")
-            }
+            .help(pdfAsText ? "PDFs open as reflowed text. Click to open them as their original pages."
+                            : "PDFs open as their original pages. Click to open them as reflowed text.")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { model.showStats = true } label: { Label("Reading", systemImage: "chart.bar") }
+                .help("How much you have been reading")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { model.showDiscover = true } label: { Label("Find Free Books", systemImage: "globe") }
+                .help("Search the open libraries (⇧⌘O)")
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { model.showImporter = true } label: { Label("Add Books", systemImage: "plus") }.help("Add books (⌘O)")
         }
     }
+    #else
+    @ToolbarContentBuilder private var shelfToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Menu {
+                Toggle(isOn: $ownCovers) { Label("Original Covers", systemImage: "photo") }
+                Toggle(isOn: Binding(get: { pdfAsText }, set: { pdfAsText = $0; library.setAllOriginal(!$0) })) {
+                    Label("PDFs Open as Text", systemImage: "text.alignleft")
+                }
+                Divider()
+                Button { model.showStats = true } label: { Label("Reading Statistics", systemImage: "chart.bar") }
+                Button { showSettings = true } label: { Label("Reading Settings", systemImage: "textformat.size") }
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { model.showDiscover = true } label: { Label("Find Free Books", systemImage: "globe") }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { model.showImporter = true } label: { Label("Add Books", systemImage: "plus") }
+        }
+    }
+    #endif
 
     private var searchField: some View {
         HStack(spacing: 6) {
@@ -262,6 +314,7 @@ struct BookCard: View {
         .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { model.frontCover = entry } }
         .contextMenu {
             Button("Read") { model.open(entry) }
+            #if os(macOS)
             Button("Read Floating") {
                 model.open(entry)
                 Task {
@@ -274,7 +327,10 @@ struct BookCard: View {
                     model.enterFloat()
                 }
             }
+            #endif
+            #if os(macOS)
             Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([entry.url]) }
+            #endif
             Button("Choose Cover…") { model.coverPick = entry }
             Menu("Tags") {
                 ForEach(library.allTags, id: \.self) { t in
@@ -363,7 +419,7 @@ struct ContinueRow: View {
 private extension View {
     /// The look of the capsules the toolbar puts its buttons in.
     @ViewBuilder func toolbarCapsule() -> some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, iOS 26.0, *) {
             self.contentShape(Capsule()).glassEffect(.regular.interactive(), in: Capsule())
         } else {
             self.background(HierarchicalShapeStyle.quaternary.opacity(0.5), in: Capsule()).contentShape(Capsule())
@@ -401,6 +457,18 @@ struct CoverFront: View {
     }
 
     private func close() { withAnimation(.easeOut(duration: 0.2)) { model.frontCover = nil } }
+}
+
+enum Layout {
+    #if os(macOS)
+    static let shelfMargin: CGFloat = 32
+    static let pageMargin: CGFloat = 56
+    static let pageTop: CGFloat = 40
+    #else
+    static let shelfMargin: CGFloat = 16
+    @MainActor static var pageMargin: CGFloat { UIDevice.current.userInterfaceIdiom == .phone ? 22 : 56 }
+    @MainActor static var pageTop: CGFloat { UIDevice.current.userInterfaceIdiom == .phone ? 14 : 40 }
+    #endif
 }
 
 /// Every sky there is, to choose a book's cover from by hand.

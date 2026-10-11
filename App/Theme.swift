@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 enum Keys {
@@ -106,6 +110,7 @@ struct ThemeBackground: View {
     }
 }
 
+#if os(macOS)
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .hudWindow
     func makeNSView(context: Context) -> NSVisualEffectView {
@@ -118,12 +123,20 @@ struct VisualEffectView: NSViewRepresentable {
     func updateNSView(_ v: NSVisualEffectView, context: Context) { v.material = material }
 }
 
+#else
+/// The glass behind a floating page; on iPhone and iPad a system material stands in for the Mac's.
+struct VisualEffectView: View {
+    var body: some View { Rectangle().fill(.regularMaterial) }
+}
+#endif
+
 extension View {
     @ViewBuilder func colorSchemeOverride(_ scheme: ColorScheme?) -> some View {
         if let scheme { self.environment(\.colorScheme, scheme) } else { self }
     }
 }
 
+#if os(macOS)
 /// Small helper: hands back the NSWindow hosting a SwiftUI view.
 struct WindowAccessor: NSViewRepresentable {
     var onWindow: (NSWindow) -> Void
@@ -136,3 +149,4 @@ struct WindowAccessor: NSViewRepresentable {
         DispatchQueue.main.async { if let w = v.window { onWindow(w) } }
     }
 }
+#endif

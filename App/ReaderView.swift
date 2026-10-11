@@ -22,7 +22,11 @@ struct ReaderView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) { statusBar }
             .colorSchemeOverride(theme.colorScheme)
             .navigationTitle(model.book?.title ?? "Folio")
+            #if os(macOS)
             .navigationSubtitle(model.book?.author ?? "")
+            #else
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar { toolbarContent }
         }
         .onChange(of: model.searchFocusToken) { _, _ in
@@ -79,8 +83,10 @@ struct ReaderView: View {
                 }
             Button { model.focusSearch() } label: { Label("Search", systemImage: "magnifyingglass") }
                 .help("Search this book (⌘F)")
+            #if os(macOS)
             Button { model.toggleFloat() } label: { Label("Float", systemImage: "rectangle.on.rectangle.angled") }
                 .help("Float the book in a borderless window (⇧⌘F)")
+            #endif
         }
     }
 
@@ -107,7 +113,7 @@ struct ReaderView: View {
             }
             .frame(height: 2)
         }
-        .background(ThemeBackground(theme: theme))
+        .background(ThemeBackground(theme: theme).ignoresSafeArea(edges: .bottom))
     }
 
     private var timeLeft: String {

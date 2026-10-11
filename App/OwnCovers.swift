@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import PDFKit
 import SwiftUI
 
@@ -33,15 +37,14 @@ final class OwnCovers: ObservableObject {
     private nonisolated static func load(_ id: UUID, _ url: URL) -> NSImage? {
         let fm = FileManager.default
         let kept = folder.appendingPathComponent(id.uuidString + ".jpg"), none = folder.appendingPathComponent(id.uuidString + ".none")
-        if let img = NSImage(contentsOf: kept) { return img }
+        if let data = try? Data(contentsOf: kept), let img = NSImage(data: data) { return img }
         if fm.fileExists(atPath: none.path) { return nil }
         guard let cg = find(url), let small = scaled(cg, longest: 720) else {
             fm.createFile(atPath: none.path, contents: nil)
             return nil
         }
-        let rep = NSBitmapImageRep(cgImage: small)
-        try? rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85])?.write(to: kept, options: .atomic)
-        return NSImage(cgImage: small, size: NSSize(width: small.width, height: small.height))
+        try? small.encoded("public.jpeg", quality: 0.85)?.write(to: kept, options: .atomic)
+        return picture(small)
     }
 
     private nonisolated static func find(_ url: URL) -> CGImage? {
@@ -53,11 +56,27 @@ final class OwnCovers: ObservableObject {
             let box = page.bounds(for: .cropBox)
             guard box.width > 1, box.height > 1 else { return nil }
             let k = 720 / max(box.width, box.height)
-            let thumb = page.thumbnail(of: NSSize(width: box.width * k, height: box.height * k), for: .cropBox)
-            return thumb.cgImage(forProposedRect: nil, context: nil, hints: nil)
+            let thumb = page.thumbnail(of: CGSize(width: box.width * k, height: box.height * k), for: .cropBox)
+            return bitmap(thumb)
         }
         guard let book = try? Book(url: url), let data = book.coverData(), let img = NSImage(data: data) else { return nil }
-        return img.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        return bitmap(img)
+    }
+
+    private nonisolated static func bitmap(_ image: NSImage) -> CGImage? {
+        #if os(macOS)
+        return image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        #else
+        return image.cgImage
+        #endif
+    }
+
+    private nonisolated static func picture(_ image: CGImage) -> NSImage {
+        #if os(macOS)
+        return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        #else
+        return UIImage(cgImage: image)
+        #endif
     }
 
     private nonisolated static func scaled(_ image: CGImage, longest: CGFloat) -> CGImage? {
@@ -66,7 +85,7 @@ final class OwnCovers: ObservableObject {
         guard w >= 40, h >= 40,     // a publisher's mark or a spacer, not a cover
               let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
-        ctx.setFillColor(.white)
+        ctx.setFillColor(CGColor(gray: 1, alpha: 1))
         ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
         ctx.interpolationQuality = .high
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))

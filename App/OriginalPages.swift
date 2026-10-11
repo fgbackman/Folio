@@ -61,6 +61,7 @@ struct RecogniseBar: View {
     }
 }
 
+#if os(macOS)
 /// A PDF's own pages, kept in step with the reading position the rest of the app uses.
 struct OriginalPages: NSViewRepresentable {
     let book: Book
@@ -193,3 +194,4 @@ struct OriginalPages: NSViewRepresentable {
         }
     }
 }
+#endif

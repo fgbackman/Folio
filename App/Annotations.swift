@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -20,6 +24,7 @@ enum HighlightColor {
 /// Edit menu reads it: the view holding it is asked to copy, and the clipboard is put back afterwards.
 enum PageSelection {
     @MainActor static func current() -> String? {
+        #if os(macOS)
         let board = NSPasteboard.general
         let kept: [[NSPasteboard.PasteboardType: Data]] = (board.pasteboardItems ?? []).map { item in
             var out: [NSPasteboard.PasteboardType: Data] = [:]
@@ -39,6 +44,9 @@ enum PageSelection {
         if !items.isEmpty { board.writeObjects(items) }
         let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return trimmed.isEmpty ? nil : trimmed
+        #else
+        return nil      // the selection can't be read this way on iPhone and iPad
+        #endif
     }
 }
 
@@ -149,6 +157,7 @@ extension ReaderModel {
         return out
     }
 
+    #if os(macOS)
     func exportMarks() {
         guard let book else { return }
         let panel = NSSavePanel()
@@ -160,6 +169,7 @@ extension ReaderModel {
             try? text.write(to: url, atomically: true, encoding: .utf8)
         }
     }
+    #endif
 }
 
 // MARK: - Sidebar
@@ -203,8 +213,12 @@ struct NotesList: View {
                                 }
                             }
                             Button("Copy") {
+                                #if os(macOS)
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(mark.text, forType: .string)
+                                #else
+                                UIPasteboard.general.string = mark.text
+                                #endif
                             }
                             Divider()
                             Button("Remove Highlight", role: .destructive) { model.remove(mark) }
@@ -217,7 +231,11 @@ struct NotesList: View {
                 HStack {
                     Text("\(marks.count) highlight\(marks.count == 1 ? "" : "s")").font(.caption).foregroundStyle(.secondary)
                     Spacer()
+                    #if os(macOS)
                     Button("Export…") { model.exportMarks() }.controlSize(.small).help("Save highlights and notes as Markdown")
+                    #else
+                    ShareLink("Export…", item: model.marksAsMarkdown())
+                    #endif
                 }
                 .padding(8)
             }

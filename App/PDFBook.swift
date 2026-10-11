@@ -1,5 +1,10 @@
 import Foundation
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
+import ImageIO
 import PDFKit
 import Vision
 
@@ -423,7 +428,7 @@ private struct Reflow {
                                   width: width + 6, height: height + 6).intersection(box)
                 let fine = min(3, max(1, 1500 / rect.width))
                 guard let cut = PageRender.context(page, box: box, rect: rect, scale: fine, gray: false)?.makeImage(),
-                      let png = NSBitmapImageRep(cgImage: cut).representation(using: .png, properties: [:]) else { continue }
+                      let png = cut.encoded("public.png") else { continue }
                 try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 let file = "p\(p + 1)-\(out[p]?.count ?? 0).png"
                 guard (try? png.write(to: folder.appendingPathComponent(file))) != nil else { continue }
@@ -618,5 +623,15 @@ private struct Reflow {
     private static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
+    }
+}
+
+extension CGImage {
+    /// The picture as a file's bytes: "public.png", or "public.jpeg" with a quality from 0 to 1.
+    func encoded(_ type: String, quality: Double = 1) -> Data? {
+        let data = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(data, type as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(dest, self, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
+        return CGImageDestinationFinalize(dest) ? data as Data : nil
     }
 }

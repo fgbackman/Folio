@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import Foundation
 import PDFKit
 
@@ -47,6 +51,7 @@ enum Converted {
 
     /// A comic archive as a PDF, one page to a picture.
     static func comic(_ url: URL) throws -> URL {
+        #if os(macOS)
         let (folder, name) = PDFImport.cache(for: url)
         let out = folder.appendingPathComponent("\(name)-comic.pdf")
         if FileManager.default.fileExists(atPath: out.path) { return out }
@@ -81,6 +86,9 @@ enum Converted {
         pdf.documentAttributes = [PDFDocumentAttribute.titleAttribute: url.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "_", with: " ")]
         guard pdf.write(to: out) else { throw Failure.unreadable }
         return out
+        #else
+        throw Failure.unreadable        // comics are unpacked by a Mac tool; not on iPhone and iPad yet
+        #endif
     }
 
     struct Document { var title = ""; var author = ""; var body = "" }
@@ -196,8 +204,10 @@ private enum WordProcessor {
             throw Converted.Failure.unreadable
         }
         var doc = Converted.Document()
+        #if os(macOS)
         doc.title = attrs?[NSAttributedString.DocumentAttributeKey.title] as? String ?? ""
         doc.author = attrs?[NSAttributedString.DocumentAttributeKey.author] as? String ?? ""
+        #endif
 
         let ns = text.string as NSString
         struct Para { let range: NSRange; let size: CGFloat; let bold: Bool; let centred: Bool }

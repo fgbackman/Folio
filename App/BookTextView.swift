@@ -45,10 +45,10 @@ struct BookTextView: View {
                         ChapterFooter(book: book, chapter: chapter, size: size, font: font, theme: theme)
                     }
                     .scrollTargetLayout()
-                    .padding(.horizontal, role == .float ? 26 : 56)
-                    .padding(.top, role == .float ? 30 : 40)
+                    .padding(.horizontal, role == .float ? 26 : Layout.pageMargin)
+                    .padding(.top, role == .float ? 30 : Layout.pageTop)
                     .padding(.bottom, 48)
-                    .frame(maxWidth: role == .float ? CGFloat.infinity : CGFloat(columnWidth) + 112)
+                    .frame(maxWidth: role == .float ? CGFloat.infinity : CGFloat(columnWidth) + 2 * Layout.pageMargin)
                     .frame(maxWidth: .infinity)
                     .background(ScrollGrabber(role: role, overlap: size * 1.6))
                 }

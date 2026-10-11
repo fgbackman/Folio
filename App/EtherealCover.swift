@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 // Every cover in Folio is painted by the app, never taken from the book. The ethereal colours and
@@ -28,16 +32,25 @@ final class CoverActivity: ObservableObject {
 
     private init() {
         let nc = NotificationCenter.default
-        for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification,
-                     NSApplication.didChangeOcclusionStateNotification] {
+        #if os(macOS)
+        let names = [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification,
+                     NSApplication.didChangeOcclusionStateNotification]
+        #else
+        let names = [UIApplication.didBecomeActiveNotification, UIApplication.willResignActiveNotification]
+        #endif
+        for name in names {
             nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.refresh() }
         }
         DispatchQueue.main.async { [weak self] in self?.refresh() }
     }
 
     private func refresh() {
+        #if os(macOS)
         guard let app = NSApp else { return }
         let now = app.isActive && app.occlusionState.contains(.visible)
+        #else
+        let now = UIApplication.shared.applicationState == .active
+        #endif
         if now != awake { awake = now }
     }
 }
@@ -310,11 +323,15 @@ struct EtherealCover: View {
             ZStack {
                 StaticSky(design: d).equatable()
 
+                #if os(macOS)
                 if CoverRenderer.shared != nil {
                     CoverSky(design: d, progress: progress, bookmarks: bookmarks, moving: moving, awake: awake,
                              hovering: hovering, hoverBox: box)
                         .allowsHitTesting(false)
                 }
+                #else
+                CoverStars(design: d, moving: moving, awake: awake).allowsHitTesting(false)
+                #endif
 
                 RadialGradient(colors: [CoverPalette.rgb(p.bottom, 0), CoverPalette.rgb(p.bottom, p.dark ? 0.55 : 0.30)],
                                center: UnitPoint(x: 0.5, y: 0.42), startRadius: w * 0.35, endRadius: w * 1.05)

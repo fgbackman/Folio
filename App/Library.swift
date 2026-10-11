@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import Combine
 import Foundation
 
@@ -58,8 +62,14 @@ struct LibraryEntry: Codable, Identifiable, Hashable {
     var isOwned: Bool {
         url.standardizedFileURL.path.hasPrefix(Library.home.appendingPathComponent("Books").standardizedFileURL.path + "/")
     }
-    var url: URL { URL(fileURLWithPath: path) }
-    var exists: Bool { FileManager.default.fileExists(atPath: path) }
+    var url: URL {
+        #if !os(macOS)
+        // An iPhone or iPad moves the app's folder when the app is updated; the book is found again by its place inside it.
+        if let r = path.range(of: "/Folio/Books/") { return Library.home.appendingPathComponent("Books/" + path[r.upperBound...]) }
+        #endif
+        return URL(fileURLWithPath: path)
+    }
+    var exists: Bool { FileManager.default.fileExists(atPath: url.path) }
 }
 
 /// The bookshelf: remembered books, reading positions and bookmarks.

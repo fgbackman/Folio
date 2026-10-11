@@ -1,4 +1,8 @@
+#if canImport(AppKit)
 import AppKit
+#else
+import UIKit
+#endif
 import SwiftUI
 
 enum ReaderRole { case window, float }
@@ -64,7 +68,9 @@ final class ReaderModel: ObservableObject {
     private var searchTask: Task<Void, Never>?
 
     var openMain: (() -> Void)?
+    #if os(macOS)
     weak var mainWindow: NSWindow?
+    #endif
 
     private init() {}
 
@@ -335,6 +341,7 @@ final class ReaderModel: ObservableObject {
 
     // MARK: - Floating book
 
+    #if os(macOS)
     func toggleFloat() { isFloating ? exitFloat() : enterFloat() }
 
     func enterFloat() {
@@ -383,6 +390,13 @@ final class ReaderModel: ObservableObject {
             }
         }
     }
+    #else
+    // One window and no floating book on iPhone and iPad.
+    func toggleFloat() {}
+    func exitFloat() {}
+    func showMainWindow() {}
+    func showMainWindowIfNeeded() {}
+    #endif
 
     // MARK: - Text size
 
