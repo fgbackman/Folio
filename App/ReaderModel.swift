@@ -49,6 +49,8 @@ final class ReaderModel: ObservableObject {
     @Published var showDiscover = false
     @Published var showStats = false
     @Published var coverPick: LibraryEntry?
+    /// The book whose cover is held up on the shelf before it is opened.
+    @Published var frontCover: LibraryEntry?
     @Published private(set) var searchFocusToken = UUID()
 
     // Search

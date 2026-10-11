@@ -62,6 +62,9 @@ struct LibraryView: View {
                     .padding(10).allowsHitTesting(false)
             }
         }
+        .overlay {
+            if let front = model.frontCover { CoverFront(entry: front).transition(.opacity) }
+        }
         .dropDestination(for: URL.self) { urls, _ in
             Task { for url in urls { await library.add(url) } }
             return !urls.isEmpty
@@ -256,7 +259,7 @@ struct BookCard: View {
         }
         .contentShape(Rectangle())
         .onHover { h in withAnimation(.easeOut(duration: 0.15)) { hovering = h } }
-        .onTapGesture { model.open(entry) }
+        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { model.frontCover = entry } }
         .contextMenu {
             Button("Read") { model.open(entry) }
             Button("Read Floating") {
@@ -327,7 +330,7 @@ struct ContinueRow: View {
 
     private func card(_ e: LibraryEntry) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            ShelfCover(entry: e, animated: false)
+            ShelfCover(entry: e)
                 .frame(width: 62)
                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                 .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
@@ -344,7 +347,7 @@ struct ContinueRow: View {
         .frame(minWidth: 200, idealWidth: 200, maxWidth: .infinity, alignment: .leading)   // the ideal width is what ViewThatFits measures
         .background(HierarchicalShapeStyle.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
         .contentShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture { model.open(e) }
+        .onTapGesture { withAnimation(.easeOut(duration: 0.2)) { model.frontCover = e } }
         .help(e.progress > 0.005 ? "Carry on with “\(e.title)”" : "Start “\(e.title)”")
     }
 
@@ -366,6 +369,38 @@ private extension View {
             self.background(HierarchicalShapeStyle.quaternary.opacity(0.5), in: Capsule()).contentShape(Capsule())
         }
     }
+}
+
+/// A book taken off the shelf and held up: its sky, large and moving, to look at before reading.
+struct CoverFront: View {
+    @EnvironmentObject private var model: ReaderModel
+    let entry: LibraryEntry
+
+    var body: some View {
+        let begun = entry.progress > 0.005
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+                .overlay(Color.black.opacity(0.25))
+                .onTapGesture { close() }
+            VStack(spacing: 18) {
+                EtherealCover(title: entry.title, author: entry.author, sky: entry.sky, progress: entry.progress,
+                              bookmarks: entry.bookmarks.count)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
+                    .frame(maxWidth: 440)
+                HStack(spacing: 10) {
+                    Button("Back to Shelf") { close() }.keyboardShortcut(.cancelAction)
+                    Button(begun ? "Continue Reading" : "Read") { model.frontCover = nil; model.open(entry) }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                }
+                .controlSize(.large)
+            }
+            .padding(36)
+        }
+    }
+
+    private func close() { withAnimation(.easeOut(duration: 0.2)) { model.frontCover = nil } }
 }
 
 /// Every sky there is, to choose a book's cover from by hand.
