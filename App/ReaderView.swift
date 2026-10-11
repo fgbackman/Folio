@@ -105,7 +105,7 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             if let book = model.book {
                 HStack(alignment: .top, spacing: 12) {
-                    EtherealCover(title: book.title, author: book.author, progress: model.progress,
+                    EtherealCover(title: book.title, author: book.author, sky: model.entry?.sky, progress: model.progress,
                                   bookmarks: model.entry?.bookmarks.count ?? 0, animated: false)
                         .frame(width: 58)
                         .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))

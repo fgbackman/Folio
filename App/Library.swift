@@ -25,6 +25,8 @@ struct LibraryEntry: Codable, Identifiable, Hashable {
     var bookmarks: [Bookmark] = []
     /// PDFs only: whether the book was last read in its original pages (nil = not chosen yet).
     var original: Bool?
+    /// Which of the skies is on this book's cover. The shelf hands them out so that no two books share one.
+    var sky: Int?
 
     var url: URL { URL(fileURLWithPath: path) }
     var exists: Bool { FileManager.default.fileExists(atPath: path) }
@@ -60,6 +62,35 @@ final class Library: ObservableObject {
            let decoded = try? JSONDecoder().decode([LibraryEntry].self, from: data) {
             entries = decoded
         }
+        // Books shelved before covers were handed out keep the constellation they had, where it is still free.
+        var changed = false
+        for i in entries.indices where entries[i].sky == nil {
+            entries[i].sky = freeSky(title: entries[i].title, author: entries[i].author, among: Library.firstSkies)
+            changed = true
+        }
+        if changed { save() }
+    }
+
+    // MARK: - Covers
+
+    /// The constellations Folio began with; older shelves chose among these alone.
+    private static let firstSkies = 42
+
+    /// A sky no book on the shelf has: the one the title would choose, or failing that the next free one after it.
+    /// Once every sky is taken (more books than skies) they are shared, the least used first.
+    func freeSky(title: String, author: String, among preferred: Int? = nil) -> Int {
+        let count = SkyCatalog.shared.count
+        let draw = CoverDesign.draw(title: title, author: author)
+        var used = [Int](repeating: 0, count: count)
+        for e in entries { if let s = e.sky, s >= 0, s < count { used[s] += 1 } }
+        if let preferred, preferred > 0, preferred <= count {
+            let first = Int(draw % UInt64(preferred))
+            if used[first] == 0 { return first }
+        }
+        let start = Int(draw % UInt64(count))
+        let least = used.min() ?? 0
+        for k in 0..<count where used[(start + k) % count] == least { return (start + k) % count }
+        return start
     }
 
     var sorted: [LibraryEntry] {
@@ -93,7 +124,8 @@ final class Library: ObservableObject {
         }.value
         guard let info else { return nil }
         if let existing = entry(forPath: path) { return existing }
-        let e = LibraryEntry(id: id, path: path, title: info.title, author: info.author, format: info.format, words: info.words)
+        var e = LibraryEntry(id: id, path: path, title: info.title, author: info.author, format: info.format, words: info.words)
+        e.sky = freeSky(title: info.title, author: info.author)
         entries.append(e)
         save()
         return e

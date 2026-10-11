@@ -259,9 +259,21 @@ void sky_bv_rgb(float bv, float *r, float *g, float *b) {
 
 /* ------------------------------------------------------------------ accessors for Swift */
 
-int32_t sky_constellation_count(void) { return sky_nconstellations; }
-const sky_constellation *sky_constellation_at(int32_t i) { return (i >= 0 && i < sky_nconstellations) ? &sky_constellations[i] : NULL; }
-const char *sky_name(int32_t i) { return (i >= 0 && i < sky_nnames) ? sky_names[i] : ""; }
+/* The skies are the 42 constellations of skydata.c followed by the fields of skydata2.c;
+   star names are numbered across both the same way. */
+int32_t sky_constellation_count(void) { return sky_nconstellations + sky_nmore; }
+const sky_constellation *sky_constellation_at(int32_t i) {
+    if (i < 0) return NULL;
+    if (i < sky_nconstellations) return &sky_constellations[i];
+    i -= sky_nconstellations;
+    return i < sky_nmore ? &sky_more[i] : NULL;
+}
+const char *sky_name(int32_t i) {
+    if (i < 0) return "";
+    if (i < sky_nnames) return sky_names[i];
+    i -= sky_nnames;
+    return i < sky_nnames2 ? sky_names2[i] : "";
+}
 int32_t sky_shower_count(void) { return sky_nshowers; }
 const sky_shower *sky_shower_at(int32_t i) { return (i >= 0 && i < sky_nshowers) ? &sky_showers[i] : NULL; }
 int32_t sky_replay_count(void) { return sky_nreplays; }

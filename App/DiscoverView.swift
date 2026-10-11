@@ -231,7 +231,8 @@ private struct OpenBookRow: View {
         let entry = self.entry
         HStack(alignment: .center, spacing: 14) {
             // The cover it has, or will have, on the shelf
-            EtherealCover(title: entry?.title ?? book.title, author: entry?.author ?? book.author, animated: false)
+            EtherealCover(title: entry?.title ?? book.title, author: entry?.author ?? book.author,
+                          sky: entry?.sky ?? library.freeSky(title: book.title, author: book.author), animated: false)
                 .frame(width: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
                 .shadow(color: .black.opacity(0.18), radius: 2, y: 1)

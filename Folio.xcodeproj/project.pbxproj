@@ -32,6 +32,7 @@
 		7F121B5780785D2025C6322F /* markup.c in Sources */ = {isa = PBXBuildFile; fileRef = 4216AC6CBDFF7D5C221F35F0 /* markup.c */; };
 		858ED619983184D55D1D57FF /* search.c in Sources */ = {isa = PBXBuildFile; fileRef = A461F27521C0B9FDF49521F2 /* search.c */; };
 		49685FF1E7CFEC132F451153 /* sky.c in Sources */ = {isa = PBXBuildFile; fileRef = D054FAA264139F0F9B753A7C /* sky.c */; };
+		A1C0FE0000000000000010B0 /* skydata2.c in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FE0000000000000010A0 /* skydata2.c */; };
 		FCFC5FCAD370742B6378D7CE /* skydata.c in Sources */ = {isa = PBXBuildFile; fileRef = 57D5E61CB5F9A921C684F48B /* skydata.c */; };
 		7FABB576DBEBE2DB2376A5CA /* text.c in Sources */ = {isa = PBXBuildFile; fileRef = A704B1EE55B2AD413F6BC519 /* text.c */; };
 		D02A3BCC65799385CC531FF6 /* util.c in Sources */ = {isa = PBXBuildFile; fileRef = DAAC7FFBD567E01131F0448A /* util.c */; };
@@ -70,6 +71,7 @@
 		A461F27521C0B9FDF49521F2 /* search.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = search.c; sourceTree = "<group>"; };
 		D054FAA264139F0F9B753A7C /* sky.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = sky.c; sourceTree = "<group>"; };
 		4B712EF48B604E21D9E50950 /* sky.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sky.h; sourceTree = "<group>"; };
+		A1C0FE0000000000000010A0 /* skydata2.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = skydata2.c; sourceTree = "<group>"; };
 		57D5E61CB5F9A921C684F48B /* skydata.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = skydata.c; sourceTree = "<group>"; };
 		A704B1EE55B2AD413F6BC519 /* text.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = text.c; sourceTree = "<group>"; };
 		DAAC7FFBD567E01131F0448A /* util.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = util.c; sourceTree = "<group>"; };
@@ -145,6 +147,7 @@
 				D054FAA264139F0F9B753A7C /* sky.c */,
 				4B712EF48B604E21D9E50950 /* sky.h */,
 				57D5E61CB5F9A921C684F48B /* skydata.c */,
+				A1C0FE0000000000000010A0 /* skydata2.c */,
 				A704B1EE55B2AD413F6BC519 /* text.c */,
 				DAAC7FFBD567E01131F0448A /* util.c */,
 				6B6A579420E7B3FF37C8F1F5 /* zip.c */,
@@ -264,6 +267,7 @@
 				858ED619983184D55D1D57FF /* search.c in Sources */,
 				49685FF1E7CFEC132F451153 /* sky.c in Sources */,
 				FCFC5FCAD370742B6378D7CE /* skydata.c in Sources */,
+				A1C0FE0000000000000010B0 /* skydata2.c in Sources */,
 				7FABB576DBEBE2DB2376A5CA /* text.c in Sources */,
 				D02A3BCC65799385CC531FF6 /* util.c in Sources */,
 				86AC12DD49DCEE649863F324 /* zip.c in Sources */,

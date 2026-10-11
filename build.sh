@@ -24,7 +24,7 @@ rm -rf "$APP" "$OBJ"
 mkdir -p "$OBJ" "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "› Compiling C engine"
-ENGINE=(util zip markup epub text book search sky skydata)
+ENGINE=(util zip markup epub text book search sky skydata skydata2)
 for f in "${ENGINE[@]}"; do
   xcrun clang -c -O2 -std=gnu11 -Wall -Wextra -Wno-unused-parameter -target "$TARGET" \
     -o "$OBJ/$f.o" "core/$f.c"

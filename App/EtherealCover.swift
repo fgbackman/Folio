@@ -112,6 +112,13 @@ struct CoverPalette {
 
 /// One book's cover: palette, sky, layout and event schedule, all derived from title and author.
 struct CoverDesign {
+    /// The number a title draws to choose its sky; the shelf turns it into a sky nobody else has.
+    static func draw(title: String, author: String) -> UInt64 {
+        var rng = SeededRandom(text: title + "\u{1F}" + author)
+        _ = rng.next()                  // the palette's draw comes first
+        return rng.next()
+    }
+
     struct Orb {
         var x, y, r, opacity: Double
         var color: CoverRGB
@@ -141,11 +148,17 @@ struct CoverDesign {
     var flarePoint: CGPoint?
     var radiants: [CGPoint?] = []
 
-    init(title: String, author: String) {
-        key = title + "\u{1F}" + author
-        var rng = SeededRandom(text: key)
+    /// `sky` is the piece of sky the shelf gave this book (so that no two books share one);
+    /// without it the title chooses.
+    init(title: String, author: String, sky: Int? = nil) {
+        let seed = title + "\u{1F}" + author
+        var rng = SeededRandom(text: seed)
         palette = CoverPalette.all[rng.pick(CoverPalette.all.count)]
-        field = SkyCatalog.shared.field(rng.pick(SkyCatalog.shared.count))
+        let count = SkyCatalog.shared.count
+        let chosen = Int(rng.next() % UInt64(max(1, count)))
+        let index = sky.map { min(max(0, $0), count - 1) } ?? chosen
+        key = seed + "\u{1F}\(index)"
+        field = SkyCatalog.shared.field(index)
 
         // Ethereal mist
         let first = rng.pick(4)
@@ -217,10 +230,10 @@ final class CoverDesignCache {
     static let shared = CoverDesignCache()
     private var designs: [String: CoverDesign] = [:]
 
-    func design(title: String, author: String) -> CoverDesign {
-        let key = title + "\u{1F}" + author
+    func design(title: String, author: String, sky: Int? = nil) -> CoverDesign {
+        let key = title + "\u{1F}" + author + "\u{1F}\(sky ?? -1)"
         if let d = designs[key] { return d }
-        let d = CoverDesign(title: title, author: author)
+        let d = CoverDesign(title: title, author: author, sky: sky)
         designs[key] = d
         return d
     }
@@ -275,13 +288,13 @@ struct EtherealCover: View {
 
     private let design: CoverDesign
 
-    init(title: String, author: String, progress: Double = 0, bookmarks: Int = 0, animated: Bool = true) {
+    init(title: String, author: String, sky: Int? = nil, progress: Double = 0, bookmarks: Int = 0, animated: Bool = true) {
         self.title = title
         self.author = author
         self.progress = progress
         self.bookmarks = bookmarks
         self.animated = animated
-        self.design = CoverDesignCache.shared.design(title: title, author: author)
+        self.design = CoverDesignCache.shared.design(title: title, author: author, sky: sky)
     }
 
     var body: some View {

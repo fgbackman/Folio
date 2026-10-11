@@ -141,7 +141,7 @@ struct BookCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            EtherealCover(title: entry.title, author: entry.author, progress: entry.progress,
+            EtherealCover(title: entry.title, author: entry.author, sky: entry.sky, progress: entry.progress,
                           bookmarks: entry.bookmarks.count)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))

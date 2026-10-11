@@ -1,7 +1,8 @@
 /*
  * Folio sky engine — real skies for the book covers.
  *
- * Every cover shows a real constellation (HYG star catalogue, d3-celestial figures and
+ * Every cover shows a real piece of sky — a constellation, an asterism, or the field around a
+ * deep-sky object or notable place (HYG star catalogue, d3-celestial figures and
  * Milky Way outline), pre-projected onto a cover 1 unit wide and 1.5 units tall, with
  * north up and east to the left. The functions below place things that move — the Sun,
  * Moon and planets, meteor-shower activity, eclipses — at their real positions for any date.
@@ -76,6 +77,8 @@ typedef struct { const char *name; double e, varpi; const char *period; float r,
 
 extern const sky_constellation sky_constellations[]; extern const int32_t sky_nconstellations;
 extern const char *const sky_names[];               extern const int32_t sky_nnames;
+extern const sky_constellation sky_more[];          extern const int32_t sky_nmore;      /* skydata2.c */
+extern const char *const sky_names2[];              extern const int32_t sky_nnames2;
 extern const sky_shower sky_showers[];             extern const int32_t sky_nshowers;
 extern const sky_eclipse sky_calendar[];           extern const int32_t sky_ncalendar;
 extern const sky_replay sky_replays[];             extern const int32_t sky_nreplays;
