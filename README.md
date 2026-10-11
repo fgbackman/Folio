@@ -23,6 +23,20 @@ Signing is ad-hoc by default. To sign with your Developer ID:
 SIGN_ID="Developer ID Application: Your Name (TEAMID)" ./build.sh --install
 ```
 
+## iPhone and iPad
+
+`FolioMobile.xcodeproj` builds the same reader for iPhone and iPad (iOS 17 or later). Open it in Xcode, choose your
+team under Signing & Capabilities, pick your device and press Run. The project file is generated: after adding or
+removing a source file, run `python3 iOS/makeproject.py`.
+
+Shared with the Mac: the reading engine, the shelf, covers, EPUB and PDF reading (original pages or reflowed text),
+search, bookmarks, highlights and notes, read aloud, statistics and the open-library search. Not there yet: the
+GPU-drawn moving sky (covers show drawn stars), comics and Word files, highlighting a selection (the top paragraph is
+marked instead), theme colours on PDF pages, Spotlight, and syncing with the Mac.
+
+Books come in through the + button, by opening a file with Folio from another app, or by putting files in
+On My iPhone › Folio in the Files app.
+
 ## What it does
 
 **Formats:** EPUB 2 and 3 (table of contents from nav or NCX, inline images), PDF, Kindle (MOBI, AZW, AZW3), FictionBook (FB2), Word (DOCX, DOC), RTF, OpenDocument, comics (CBZ), plain text (Project Gutenberg headers stripped, chapters detected, `_italics_` honoured), Markdown, and single-file HTML. DRM-protected books can't be opened. Kindle books come without their pictures, and those packed with Huffman compression are not read.
