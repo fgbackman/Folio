@@ -79,7 +79,7 @@ struct FloatingBookView: View {
                 ThemeBackground(theme: theme).opacity(pageOpacity)
 
                 if model.book != nil {
-                    BookTextView(role: .float)
+                    BookPageView(role: .float)
                 } else {
                     Text("No book open").foregroundStyle(theme.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -139,6 +139,10 @@ struct FloatingBookView: View {
                 .foregroundStyle(theme.secondary)
                 .allowsHitTesting(false)
             Spacer(minLength: 4)
+            if model.canSwitchForm {
+                barButton(model.showsOriginal ? "text.alignleft" : "doc.richtext",
+                          help: model.showsOriginal ? "Show as text" : "Show original pages") { model.toggleOriginal() }
+            }
             barButton("textformat.size.smaller", help: "Smaller text") { model.adjustFontSize(-1) }
             barButton("textformat.size.larger", help: "Larger text") { model.adjustFontSize(1) }
             barButton(onTop ? "pin.fill" : "pin", help: onTop ? "Stop floating above other windows" : "Keep above other windows") { onTop.toggle() }

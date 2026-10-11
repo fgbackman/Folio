@@ -64,7 +64,8 @@ typedef struct {
     uint32_t length;
 } rd_hit;
 
-/* Open .epub, .txt, .md/.markdown, .html/.htm/.xhtml. NULL on failure,
+/* Open .epub, .txt, .md/.markdown, .html/.htm/.xhtml (a single HTML file is split into
+   chapters at its <h1> headings). NULL on failure,
    with a human-readable reason written to err. */
 rd_book    *rd_open(const char *path, char *err, size_t errlen);
 void        rd_close(rd_book *b);

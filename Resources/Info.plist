@@ -42,6 +42,18 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
+			<string>PDF Book</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
 			<string>Text Book</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>

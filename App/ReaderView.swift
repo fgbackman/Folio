@@ -16,7 +16,7 @@ struct ReaderView: View {
         } detail: {
             ZStack {
                 ThemeBackground(theme: theme).ignoresSafeArea()
-                BookTextView(role: .window)
+                BookPageView(role: .window)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) { statusBar }
             .colorSchemeOverride(theme.colorScheme)
@@ -43,6 +43,13 @@ struct ReaderView: View {
                 Label("Bookmark", systemImage: model.isBookmarked ? "bookmark.fill" : "bookmark")
             }
             .help("Bookmark this spot (⌘D)")
+            if model.canSwitchForm {
+                Button { model.toggleOriginal() } label: {
+                    Label(model.showsOriginal ? "Show as Text" : "Show Original Pages",
+                          systemImage: model.showsOriginal ? "text.alignleft" : "doc.richtext")
+                }
+                .help(model.showsOriginal ? "Read the text reflowed in your own font and theme (⇧⌘P)" : "Read the PDF's original pages (⇧⌘P)")
+            }
             Button { showAppearance.toggle() } label: { Label("Appearance", systemImage: "textformat.size") }
                 .help("Font, size and theme")
                 .popover(isPresented: $showAppearance, arrowEdge: .bottom) {
@@ -60,6 +67,7 @@ struct ReaderView: View {
             if let book = model.book {
                 Text(book.chapterTitles[min(model.chapter, book.chapterCount - 1)]).lineLimit(1)
                 Spacer()
+                if model.showsOriginal { Text("Page \(model.page + 1) of \(model.pageCount)").monospacedDigit() }
                 Text(timeLeft).monospacedDigit()
                 Text("\(Int((model.progress * 100).rounded()))%").monospacedDigit().frame(minWidth: 34, alignment: .trailing)
             }

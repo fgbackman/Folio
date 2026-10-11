@@ -25,7 +25,7 @@ struct LibraryView: View {
                     ContentUnavailableView {
                         Label("Your shelf is empty", systemImage: "books.vertical")
                     } description: {
-                        Text("Drop EPUB, text, Markdown or HTML books here, or press ⌘O.")
+                        Text("Drop EPUB, PDF, text, Markdown or HTML books here, or press ⌘O.")
                     } actions: {
                         Button("Open a Book…") { model.showImporter = true }.buttonStyle(.borderedProminent)
                     }

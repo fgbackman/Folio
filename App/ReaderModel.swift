@@ -27,6 +27,10 @@ final class ReaderModel: ObservableObject {
     /// Block the next jump should land on. Kept apart from `position`, which scroll
     /// callbacks overwrite, so a freshly built scroll view can't clobber the target.
     private(set) var jumpBlock = 0
+    /// A PDF is being read in its original pages rather than as reflowed text.
+    @Published private(set) var showsOriginal = false
+    /// Page in view (from 0) while reading original pages.
+    @Published private(set) var page = 0
 
     // Chrome
     @Published private(set) var isFloating = false
@@ -88,6 +92,12 @@ final class ReaderModel: ObservableObject {
                 position = target?.block ?? entry.block
                 jumpAnchor = .top
                 jumpBlock = position
+                if let pdf = b.pdf {
+                    showsOriginal = !pdf.hasText || (entry.original ?? true)
+                    page = b.page(chapter: ch, block: position)
+                } else {
+                    showsOriginal = false
+                }
                 jumpToken = UUID()
                 Library.shared.touch(entry.id)
                 updateProgress()
@@ -101,6 +111,7 @@ final class ReaderModel: ObservableObject {
         if isFloating { exitFloat() }
         book = nil
         entryID = nil
+        showsOriginal = false
         hits = []; hitIndex = [:]; selectedHit = nil
         progress = 0
     }
@@ -128,6 +139,35 @@ final class ReaderModel: ObservableObject {
     func noteVisible(_ block: Int, from role: ReaderRole) {
         guard role == (isFloating ? .float : .window), block != position else { return }
         position = block
+        updateProgress()
+        if let entryID { Library.shared.setPosition(entryID, chapter: chapter, block: position, progress: progress) }
+    }
+
+    // MARK: - Original pages
+
+    /// The open book is a PDF with text, so it can be read either way.
+    var canSwitchForm: Bool { book?.pdf?.hasText == true }
+    var pageCount: Int { book?.pdf?.pageCount ?? 0 }
+
+    /// Switches between a PDF's original pages and its reflowed text, staying at the same place.
+    func toggleOriginal() {
+        guard canSwitchForm else { return }
+        showsOriginal.toggle()
+        if let entryID { Library.shared.setOriginal(entryID, showsOriginal) }
+        jumpAnchor = .top
+        jumpBlock = position
+        jumpToken = UUID()
+    }
+
+    /// Called by the original pages as they scroll.
+    func notePage(_ p: Int, from role: ReaderRole) {
+        guard showsOriginal, role == (isFloating ? .float : .window), let book else { return }
+        if p != page { page = p }
+        // Several places in the text share a page; leave the position alone while it is still on this one.
+        if book.page(chapter: chapter, block: position) == p { return }
+        let place = book.place(page: p)
+        if place.chapter != chapter { chapter = place.chapter }
+        position = place.block
         updateProgress()
         if let entryID { Library.shared.setPosition(entryID, chapter: chapter, block: position, progress: progress) }
     }
@@ -279,6 +319,7 @@ final class ReaderModel: ObservableObject {
     // MARK: - Text size
 
     func adjustFontSize(_ delta: Double) {
+        if showsOriginal { NotificationCenter.default.post(name: .folioPageZoom, object: delta); return }
         let key = isFloating ? Keys.floatFontSize : Keys.fontSize
         let current = UserDefaults.standard.object(forKey: key) as? Double ?? (isFloating ? 16 : 19)
         UserDefaults.standard.set(min(40, max(10, current + delta)), forKey: key)

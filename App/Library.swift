@@ -23,6 +23,8 @@ struct LibraryEntry: Codable, Identifiable, Hashable {
     var block = 0
     var progress: Double = 0
     var bookmarks: [Bookmark] = []
+    /// PDFs only: whether the book was last read in its original pages (nil = not chosen yet).
+    var original: Bool?
 
     var url: URL { URL(fileURLWithPath: path) }
     var exists: Bool { FileManager.default.fileExists(atPath: path) }
@@ -39,11 +41,21 @@ final class Library: ObservableObject {
     private let folder: URL
     private let file: URL
 
+    /// Where Folio keeps the shelf, downloaded books and converted PDFs: ~/Library/Application Support/Folio.
+    /// Setting FOLIO_HOME points it somewhere else, for trying things out without touching the real shelf.
+    nonisolated static let home: URL = {
+        let fm = FileManager.default
+        var url = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Folio", isDirectory: true)
+        if let override = ProcessInfo.processInfo.environment["FOLIO_HOME"], !override.isEmpty {
+            url = URL(fileURLWithPath: override, isDirectory: true)
+        }
+        try? fm.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }()
+
     private init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        folder = base.appendingPathComponent("Folio", isDirectory: true)
+        folder = Library.home
         file = folder.appendingPathComponent("library.json")
-        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         if let data = try? Data(contentsOf: file),
            let decoded = try? JSONDecoder().decode([LibraryEntry].self, from: data) {
             entries = decoded
@@ -101,6 +113,10 @@ final class Library: ObservableObject {
         let e = entries[i]
         if e.chapter == chapter && e.block == block && abs(e.progress - progress) < 0.0005 { return }
         update(id) { $0.chapter = chapter; $0.block = block; $0.progress = progress }
+    }
+
+    func setOriginal(_ id: UUID, _ original: Bool) {
+        update(id) { $0.original = original }
     }
 
     func addBookmark(_ id: UUID, _ mark: Bookmark) {

@@ -27,6 +27,7 @@ final class Book: @unchecked Sendable {
         UTType.html,
         UTType(filenameExtension: "md"),
         UTType(filenameExtension: "markdown"),
+        UTType.pdf,
     ] as [UTType?]).compactMap { $0 }
 
     let url: URL
@@ -39,6 +40,8 @@ final class Book: @unchecked Sendable {
     let chapterStarts: [Int]
     let totalLength: Int
     let toc: [TOCItem]
+    /// Set for a PDF: the original pages behind the reflowed text.
+    let pdf: PDFSource?
 
     private let handle: OpaquePointer
     private var cache: [Int: [Block]] = [:]
@@ -48,7 +51,10 @@ final class Book: @unchecked Sendable {
     init(url: URL) throws {
         let errCap = 256
         var err = [CChar](repeating: 0, count: errCap)
-        guard let h = rd_open(url.path, &err, errCap) else {
+        // A PDF is read through the text pulled out of it; the pages themselves are shown by PDFKit.
+        let source: PDFSource? = url.pathExtension.lowercased() == "pdf" ? try PDFImport.prepare(url) : nil
+        pdf = source
+        guard let h = rd_open((source?.html ?? url).path, &err, errCap) else {
             let why = err.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
             throw OpenError.failed(why.isEmpty ? "This file could not be opened." : why)
         }
@@ -56,7 +62,7 @@ final class Book: @unchecked Sendable {
         self.url = url
         title = String(cString: rd_title(h))
         author = String(cString: rd_author(h))
-        format = String(cString: rd_format(h))
+        format = source == nil ? String(cString: rd_format(h)) : "PDF"
         wordCount = Int(rd_word_count(h))
 
         let n = Int(rd_chapter_count(h))
@@ -106,6 +112,43 @@ final class Book: @unchecked Sendable {
         cache[chapter] = out
         lock.unlock()
         return out
+    }
+
+    // MARK: Original pages
+
+    private var starts: [Int: [Int]] = [:]
+
+    /// Where each block of a chapter begins, in bytes of text from the chapter's start.
+    private func blockStarts(_ chapter: Int) -> [Int] {
+        lock.lock()
+        if let cached = starts[chapter] { lock.unlock(); return cached }
+        lock.unlock()
+        var out: [Int] = []
+        var running = 0
+        for b in blocks(chapter) { out.append(running); running += b.text.utf8.count }
+        lock.lock()
+        starts[chapter] = out
+        lock.unlock()
+        return out
+    }
+
+    /// The PDF page showing a place in the text.
+    func page(chapter: Int, block: Int) -> Int {
+        guard let pdf, totalLength > 0, chapter >= 0, chapter < chapterCount else { return 0 }
+        let s = blockStarts(chapter)
+        let within = s.isEmpty ? 0 : s[min(max(0, block), s.count - 1)]
+        return pdf.page(atFraction: Double(chapterStarts[chapter] + within) / Double(totalLength))
+    }
+
+    /// The place in the text where a PDF page begins.
+    func place(page: Int) -> (chapter: Int, block: Int) {
+        guard let pdf, totalLength > 0, chapterCount > 0 else { return (0, 0) }
+        let offset = Int((pdf.fraction(atPage: page) * Double(totalLength)).rounded())
+        let ch = max(0, (chapterStarts.lastIndex { $0 <= offset } ?? 0))
+        let s = blockStarts(ch)
+        // the first block that reaches onto the page
+        let block = s.firstIndex { $0 >= offset - chapterStarts[ch] } ?? max(0, s.count - 1)
+        return (ch, block)
     }
 
     func image(_ path: String) -> NSImage? {

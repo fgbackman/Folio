@@ -98,8 +98,11 @@ struct FolioCommands: Commands {
                 .keyboardShortcut("d")
                 .disabled(model.book == nil)
             Divider()
-            Button("Bigger Text") { model.adjustFontSize(1) }.keyboardShortcut("=")
-            Button("Smaller Text") { model.adjustFontSize(-1) }.keyboardShortcut("-")
+            Button(model.showsOriginal ? "Show as Text" : "Show Original Pages") { model.toggleOriginal() }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+                .disabled(!model.canSwitchForm)
+            Button(model.showsOriginal ? "Zoom In" : "Bigger Text") { model.adjustFontSize(1) }.keyboardShortcut("=")
+            Button(model.showsOriginal ? "Zoom Out" : "Smaller Text") { model.adjustFontSize(-1) }.keyboardShortcut("-")
             Divider()
             Button(model.isFloating ? "Return to Window" : "Float Book") { model.toggleFloat() }
                 .keyboardShortcut("f", modifiers: [.command, .shift])

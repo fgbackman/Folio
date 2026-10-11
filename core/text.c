@@ -341,6 +341,61 @@ int load_text(rd_book *b, int markdown, const char *fallback_title) {
     return 0;
 }
 
+/* <meta name="author" content="…"> in the head of a single-file book. */
+static void html_author(rd_book *b) {
+    xtok t; xtoken k;
+    sbuf name = {0}, content = {0};
+    xml_init(&t, (const char *)b->file, b->file_len);
+    while (!b->author && xml_next(&t, &k) != XT_END) {
+        if (k.kind != XT_OPEN) continue;
+        if (strcmp(k.name, "body") == 0) break;
+        if (strcmp(k.name, "meta") != 0) continue;
+        sb_clear(&name); sb_clear(&content);
+        if (xml_attr(k.attrs, k.alen, "name", &name) && name.len && strcasecmp(sb_cstr(&name), "author") == 0 &&
+            xml_attr(k.attrs, k.alen, "content", &content) && content.len) {
+            const char *s = sb_cstr(&content); size_t n = content.len;
+            trim(&s, &n);
+            if (n) b->author = xstrndup(s, n);
+        }
+    }
+    sb_free(&name); sb_free(&content);
+}
+
+/* A single file with several top-level headings is a book of several chapters. */
+static void split_at_h1(rd_book *b) {
+    chapter *src = b->ch[0];
+    int heads = 0;
+    for (int k = 0; k < src->nblocks; k++) if (src->blocks[k].type == RD_H1) heads++;
+    if (heads < 2) return;
+
+    rd_block *blocks = src->blocks; int n = src->nblocks;
+    anchor *anchors = src->anchors; int na = src->nanchors;
+    src->blocks = NULL; src->nblocks = src->capblocks = 0;
+    src->anchors = NULL; src->nanchors = src->capanchors = 0;
+    src->text_len = 0;
+
+    chapter *c = src;
+    int a = 0;
+    for (int k = 0; k < n; k++) {
+        if (blocks[k].type == RD_H1 && c->nblocks > 0) c = book_add_chapter(b, NULL);
+        if (c->nblocks == c->capblocks) {
+            c->capblocks = c->capblocks ? c->capblocks * 2 : 32;
+            c->blocks = realloc(c->blocks, sizeof *c->blocks * (size_t)c->capblocks);
+        }
+        c->blocks[c->nblocks++] = blocks[k];
+        c->text_len += blocks[k].text_len;
+        for (; a < na && anchors[a].block <= k; a++) {      /* anchors are in block order */
+            if (c->nanchors == c->capanchors) {
+                c->capanchors = c->capanchors ? c->capanchors * 2 : 8;
+                c->anchors = realloc(c->anchors, sizeof *c->anchors * (size_t)c->capanchors);
+            }
+            c->anchors[c->nanchors++] = (anchor){anchors[a].id, c->nblocks - 1};
+        }
+    }
+    for (; a < na; a++) free(anchors[a].id);
+    free(blocks); free(anchors);
+}
+
 int load_html(rd_book *b, const char *fallback_title) {
     chapter *c = book_add_chapter(b, NULL);
     sbuf title = {0};
@@ -352,5 +407,7 @@ int load_html(rd_book *b, const char *fallback_title) {
     }
     sb_free(&title);
     if (!b->title) b->title = xstrdup(fallback_title);
+    html_author(b);
+    split_at_h1(b);
     return 0;
 }
