@@ -117,11 +117,23 @@ struct LibraryView: View {
                 }
             }
             Spacer(minLength: 8)
-            Picker("Sort", selection: $orderName) {
-                ForEach(Library.Order.allCases) { Text($0.rawValue).tag($0.rawValue) }
+            Menu {
+                Picker("Sort", selection: $orderName) {
+                    ForEach(Library.Order.allCases) { Text($0.rawValue).tag($0.rawValue) }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                HStack(spacing: 6) {
+                    Text(order.rawValue)
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .frame(height: 32)
+                .toolbarCapsule()
             }
-            .pickerStyle(.menu)
-            .labelsHidden()
+            .buttonStyle(.plain)
             .fixedSize()
             .help("The order of the shelf")
         }
@@ -328,6 +340,17 @@ struct ContinueRow: View {
         if m < 1 { return "almost done" }
         if m < 60 { return "\(m) min left" }
         return "\(m / 60) h \(m % 60) min left"
+    }
+}
+
+private extension View {
+    /// The look of the capsules the toolbar puts its buttons in.
+    @ViewBuilder func toolbarCapsule() -> some View {
+        if #available(macOS 26.0, *) {
+            self.contentShape(Capsule()).glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            self.background(HierarchicalShapeStyle.quaternary.opacity(0.5), in: Capsule()).contentShape(Capsule())
+        }
     }
 }
 
