@@ -28,7 +28,6 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                header
                 if library.entries.isEmpty {
                     ContentUnavailableView {
                         Label("Your shelf is empty", systemImage: "books.vertical")
@@ -72,6 +71,13 @@ struct LibraryView: View {
         .sheet(item: $model.coverPick) { CoverGallery(entry: $0).environmentObject(library) }
         .onChange(of: library.allTags) { _, tags in if let tag, !tags.contains(tag) { self.tag = nil } }
         .toolbar {
+            ToolbarItem(placement: .primaryAction) { searchField }
+            if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
+            ToolbarItem(placement: .primaryAction) {
+                Text("\(library.entries.count) book\(library.entries.count == 1 ? "" : "s")")
+                    .foregroundStyle(.secondary).padding(.horizontal, 10)
+            }
+            if #available(macOS 26.0, *) { ToolbarSpacer(.fixed, placement: .primaryAction) }
             ToolbarItem(placement: .primaryAction) {
                 Button { model.showStats = true } label: { Label("Reading", systemImage: "chart.bar") }
                     .help("How much you have been reading")
@@ -86,25 +92,16 @@ struct LibraryView: View {
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Library").font(.system(size: 30, weight: .bold, design: .serif))
-                Text("\(library.entries.count) book\(library.entries.count == 1 ? "" : "s")")
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Filter titles · Return searches inside every book", text: $filter)
-                    .textFieldStyle(.plain)
-                    .onSubmit { searchShelf() }
-                if searchingShelf { ProgressView().controlSize(.small) }
-            }
-            .padding(8)
-            .frame(width: 360)
-            .background(HierarchicalShapeStyle.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Filter titles · Return searches inside every book", text: $filter)
+                .textFieldStyle(.plain)
+                .onSubmit { searchShelf() }
+            if searchingShelf { ProgressView().controlSize(.small) }
         }
+        .padding(.horizontal, 10)
+        .frame(width: 340)
     }
 
     /// Tags to narrow the shelf by, and the order the books stand in.
