@@ -64,6 +64,9 @@ final class CoverScene {
     var batches: [Batch] = []
     var uniforms = CoverUniforms()
     var moon = MoonUniforms()
+    /// Something in this frame moves quickly (a meteor in flight, a pulsar's beams), so the cover is
+    /// drawn more often than the slow drift of the rest of the sky needs.
+    var fast = false
 
     func reset() {
         prims.removeAll(keepingCapacity: true)
@@ -71,6 +74,7 @@ final class CoverScene {
         batches.removeAll(keepingCapacity: true)
         uniforms = CoverUniforms()
         moon = MoonUniforms()
+        fast = false
     }
 
     private func extend(_ kind: Kind, _ blend: CoverBlend, start: Int, count: Int) {
@@ -101,6 +105,12 @@ extension CoverDesign {
     /// Lays out the moving sky for one frame. `t` is zero when covers are set not to animate.
     func compose(into scene: CoverScene, size: CGSize, scale: Double, t: Double, sky: SkyNow, kp: Double,
                  progress: Double, bookmarks: Int, hover: HoverInfo?) {
+        var perfLap = CoverPerf.now()
+        func lap(_ i: Int) {
+            let n = CoverPerf.now()
+            CoverPerf.sections[i] &+= n &- perfLap
+            perfLap = n
+        }
         scene.reset()
         guard size.width > 2, size.height > 2 else { return }
         let p = LivePainter(self, size, scale, scene)
@@ -131,22 +141,37 @@ extension CoverDesign {
             u.lensTheta = Float(L.theta)
         }
         scene.uniforms = u
+        lap(0)
 
         p.eclipseSky(night: night, solar: solar)
+        lap(1)
         p.orbs(t: t)
+        lap(2)
         p.aurora(t: t, kp: kp)
+        lap(3)
         p.deepSkyLive(t: t)
+        lap(4)
         if let L = lens { p.lensShadow(L) }
+        lap(5)
         p.trails(t: t)
+        lap(6)
         p.figure(t: t, bookmarks: bookmarks)
         scene.stars(p.glowBlend)
+        lap(7)
         p.planets(t: t, sky: sky, night: night)
+        lap(8)
         if let f = ev.flare { p.flare(t: t, f) }
+        lap(9)
         if let c = ev.comet { p.comet(c) }
+        lap(10)
         p.moon(t: t, sky: sky, ev: ev)
+        lap(11)
         p.meteors(t: t, sky: sky)
+        lap(12)
         p.orrery(t: t, progress: progress)
+        lap(13)
         if let L = lens { p.lensRing(L) }
+        lap(14)
     }
 }
 
@@ -425,6 +450,7 @@ struct LivePainter {
         glow(c, R * (0.25 + 0.35 * pulse), col, 0.22 + 0.55 * pulse, raw: dark, B)
         disc(c, max(0.5, R * 0.05), ink((0.95, 0.97, 1.0), 0.9), B)
         guard beams else { return }
+        scene.fast = true
         let ca = cos(ph * CV.tau), sa = sin(ph * CV.tau)
         func turned(_ x: Double, _ y: Double) -> P2 { P2(c.x + x * ca - y * sa, c.y + x * sa + y * ca) }
         for s in [-1.0, 1.0] {
@@ -939,6 +965,7 @@ struct LivePainter {
             let peak = 0.55 + 0.45 * h(8)
             let sx = Double(start.x), sy = Double(start.y)
             if age < duration {
+                scene.fast = true
                 let u = age / duration
                 let headD = len * u, tailD = max(0, headD - len * 0.42)
                 let head = pt(sx + dx * headD, sy + dy * headD)

@@ -65,6 +65,8 @@ struct LibraryView: View {
                 if !shelfQuery.isEmpty { shelfResults }
             }
             .padding(Layout.shelfMargin)
+            // a book held up in front of the shelf hides it: the shelf's covers stop drawing meanwhile
+            .environment(\.coversResting, model.frontCover != nil)
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .overlay {

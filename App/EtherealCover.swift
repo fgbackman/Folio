@@ -55,6 +55,19 @@ final class CoverActivity: ObservableObject {
     }
 }
 
+/// True for covers that are out of sight behind something else, such as the shelf while a book is held
+/// up in front of it: they keep the picture they have and stop drawing.
+private struct CoversRestingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var coversResting: Bool {
+        get { self[CoversRestingKey.self] }
+        set { self[CoversRestingKey.self] = newValue }
+    }
+}
+
 /// Deterministic SplitMix64 — the same title always yields the same cover.
 struct SeededRandom: RandomNumberGenerator {
     private var state: UInt64
@@ -257,6 +270,7 @@ final class HoverBox {
     var point: CGPoint?          // cover units
     var enteredAt = -100.0
     var exitedAt = -100.0
+    var movedAt = -100.0         // when the pointer last moved over the cover
     var inside = false
     var visits = 0
 
@@ -295,6 +309,7 @@ struct EtherealCover: View {
 
     @AppStorage(Keys.animateCovers) private var animateCovers = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.coversResting) private var resting
     @ObservedObject private var activity = CoverActivity.shared
     @State private var hoverBox = HoverBox()
     @State private var hovering = false
@@ -317,7 +332,7 @@ struct EtherealCover: View {
         let progress = self.progress
         let bookmarks = self.bookmarks
         let box = hoverBox
-        let awake = activity.awake
+        let awake = activity.awake && !resting
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
             ZStack {
@@ -389,14 +404,9 @@ struct EtherealCover: View {
 
                 // What is under the pointer, and what the real sky is doing tonight
                 if hovering && w >= 110 {
-                    TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: !awake)) { timeline in
-                        let now = timeline.date.timeIntervalSince(CoverClock.start)
-                        Canvas { ctx, size in
-                            d.drawCaption(&ctx, size: size, t: moving ? now : 0, sky: SkyNow.current,
-                                          kp: SpaceWeather.shared.kp, progress: progress, hover: box.info(now))
-                        }
-                    }
-                    .allowsHitTesting(false)
+                    CoverCaption(design: d, box: box, moving: moving, progress: progress, awake: awake)
+                        .transition(.opacity)
+                        .allowsHitTesting(false)
                 }
             }
             .frame(width: w, height: h)
@@ -410,20 +420,114 @@ struct EtherealCover: View {
                         box.inside = true
                         box.enteredAt = t
                         box.visits += 1
-                        hovering = true
+                        withAnimation(.easeOut(duration: 0.45)) { hovering = true }
                     }
-                    box.point = CGPoint(x: location.x / max(1, w), y: location.y / max(1, w))
+                    let point = CGPoint(x: location.x / max(1, w), y: location.y / max(1, w))
+                    if point != box.point {
+                        box.point = point
+                        box.movedAt = t
+                        #if os(macOS)
+                        CoverRenderer.shared?.wake()        // the lens follows the pointer
+                        #endif
+                    }
                 case .ended:
                     box.inside = false
                     box.exitedAt = t
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                        if !box.inside { hovering = false }
-                    }
+                    withAnimation(.easeOut(duration: 0.45)) { hovering = false }
                 }
             }
         }
         .aspectRatio(2.0 / 3.0, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(author.isEmpty ? title : "\(title), by \(author)")
+    }
+}
+
+/// What is under the pointer, and what the real sky is doing tonight. The words are worked out four
+/// times a second, and the card is set again only when they change; the fade in and out is left to the
+/// compositor. (A TimelineView here kept the whole window redrawing at every frame the covers drew.)
+struct CoverCaption: View {
+    let design: CoverDesign
+    let box: HoverBox
+    let moving: Bool
+    let progress: Double
+    let awake: Bool
+    @State private var lines: (String, String, String)?
+
+    /// What the words depend on besides the pointer and the clock.
+    private struct Key: Equatable {
+        let width: CGFloat
+        let height: CGFloat
+        let awake: Bool
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = geo.size
+            ZStack(alignment: .top) {
+                Color.clear
+                if let shown = lines ?? words(size) {
+                    CaptionCard(lines: shown, palette: design.palette, width: size.width)
+                        .equatable()
+                }
+            }
+            .task(id: Key(width: size.width, height: size.height, awake: awake)) {
+                repeat {
+                    if let next = words(size), lines.map({ $0 != next }) ?? true { lines = next }
+                    guard awake else { break }
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                } while !Task.isCancelled
+            }
+        }
+    }
+
+    private func words(_ size: CGSize) -> (String, String, String)? {
+        guard let point = box.point else { return nil }
+        let now = Date().timeIntervalSince(CoverClock.start)
+        return design.captionLines(size: size, at: point, visits: box.visits, t: moving ? now : 0,
+                                   sky: SkyNow.current, kp: SpaceWeather.shared.kp, progress: progress)
+    }
+}
+
+/// The caption's words on a soft scrim along the top of the cover.
+struct CaptionCard: View, Equatable {
+    let lines: (String, String, String)
+    let palette: CoverPalette
+    let width: CGFloat
+
+    /// The same words at the same size are not set again.
+    static func == (a: CaptionCard, b: CaptionCard) -> Bool {
+        a.lines == b.lines && a.width == b.width && a.palette.dark == b.palette.dark
+            && a.palette.ink == b.palette.ink && a.palette.bottom == b.palette.bottom
+    }
+
+    var body: some View {
+        let w = Double(width)
+        let pad = w * 0.07
+        let gap = w * 0.018
+        let fs1 = max(8.5, w * 0.066), fs2 = max(7.5, w * 0.05)
+        let ink: Color = palette.dark ? .white : CoverPalette.rgb(palette.ink)
+        let base = palette.dark ? CoverPalette.rgb(palette.bottom, 0.86) : Color.white.opacity(0.84)
+        let clear = palette.dark ? CoverPalette.rgb(palette.bottom, 0) : Color.white.opacity(0)
+        VStack(alignment: .leading, spacing: gap) {
+            Text(lines.0)
+                .font(.system(size: fs1, weight: .semibold, design: .serif))
+                .foregroundStyle(ink.opacity(0.96))
+            Text(lines.1)
+                .font(.system(size: fs2, weight: .regular, design: .serif))
+                .foregroundStyle(ink.opacity(0.86))
+            Text(lines.2)
+                .font(.system(size: fs2 * 0.95, weight: .regular, design: .serif).italic())
+                .foregroundStyle(ink.opacity(0.66))
+        }
+        .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(width: max(1, w - 2 * pad), alignment: .leading)
+        .padding(.top, pad)
+        .padding(.bottom, pad * 1.6)
+        .frame(width: w)
+        .background(LinearGradient(stops: [.init(color: base, location: 0), .init(color: base, location: 0.72),
+                                           .init(color: clear, location: 1)], startPoint: .top, endPoint: .bottom))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

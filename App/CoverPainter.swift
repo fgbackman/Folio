@@ -73,10 +73,14 @@ enum CV {
         if ly < 20 { return String(format: "%.1f light-years", ly) }
         if ly < 1000 { return "\(Int(ly.rounded())) light-years" }
         let rounded = Int((ly / 100).rounded() * 100)
+        return "about " + (decimal.string(from: NSNumber(value: rounded)) ?? "\(rounded)") + " light-years"
+    }
+
+    static let decimal: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .decimal
-        return "about " + (f.string(from: NSNumber(value: rounded)) ?? "\(rounded)") + " light-years"
-    }
+        return f
+    }()
 
     /// "Its light left around 1528" — the year the starlight you see set out.
     static func departure(_ ly: Double) -> String? {
@@ -248,15 +252,15 @@ extension CoverDesign {
         p.grain(ctx)
     }
 
-    /// The hover caption: what is under the pointer, and what the real sky is doing tonight.
-    func drawCaption(_ ctx: inout GraphicsContext, size: CGSize, t: Double, sky: SkyNow, kp: Double,
-                     progress: Double, hover: HoverInfo?) {
-        guard let h = hover, size.width >= 110 else { return }
+    /// The hover caption's three lines: what is under the pointer (`point` in cover units), and what the
+    /// real sky is doing tonight.
+    func captionLines(size: CGSize, at point: CGPoint, visits: Int, t: Double, sky: SkyNow, kp: Double,
+                      progress: Double) -> (String, String, String) {
+        guard size.width > 2, size.height > 2 else { return ("", "", "") }
         let p = CoverPainter(self, size)
         let progress = progress.isFinite ? CV.clamp(progress) : 0
         let ev = events(t: t, sky: sky)
-        let lines = p.caption(at: h.point, visits: h.visits, t: t, sky: sky, kp: kp, progress: progress, ev: ev)
-        p.paintCaption(ctx, lines, alpha: h.strength)
+        return p.caption(at: point, visits: visits, t: t, sky: sky, kp: kp, progress: progress, ev: ev)
     }
 }
 
@@ -1709,37 +1713,5 @@ struct CoverPainter {
             detail = pool[max(0, visits) % pool.count]
         }
         return (title, detail, tonightLine(sky: sky, kp: kp))
-    }
-
-    func paintCaption(_ ctx: GraphicsContext, _ lines: (String, String, String), alpha: Double) {
-        guard alpha > 0.01 else { return }
-        let W = Double(size.width)
-        let pad = W * 0.07
-        let maxW = W - 2 * pad
-        let inkColor: Color = dark ? Color.white : CoverPalette.rgb(pal.ink)
-        let fs1 = max(8.5, W * 0.066), fs2 = max(7.5, W * 0.05)
-        var t1 = ctx.resolve(Text(lines.0).font(.system(size: fs1, weight: .semibold, design: .serif)))
-        t1.shading = .color(inkColor.opacity(0.96 * alpha))
-        var t2 = ctx.resolve(Text(lines.1).font(.system(size: fs2, weight: .regular, design: .serif)))
-        t2.shading = .color(inkColor.opacity(0.86 * alpha))
-        var t3 = ctx.resolve(Text(lines.2).font(.system(size: fs2 * 0.95, weight: .regular, design: .serif).italic()))
-        t3.shading = .color(inkColor.opacity(0.66 * alpha))
-        let box = CGSize(width: maxW, height: Double(size.height))
-        let s1 = t1.measure(in: box), s2 = t2.measure(in: box), s3 = t3.measure(in: box)
-        let gap = W * 0.018
-        let h1 = Double(s1.height), h2 = Double(s2.height), h3 = Double(s3.height)
-        let scrimH = pad + h1 + gap + h2 + gap + h3 + pad * 1.6
-        let base = dark ? CoverPalette.rgb(pal.bottom, 0.86 * alpha) : Color.white.opacity(0.84 * alpha)
-        let clear = dark ? CoverPalette.rgb(pal.bottom, 0) : Color.white.opacity(0)
-        ctx.fill(Path(CGRect(x: 0, y: 0, width: W, height: scrimH)),
-                 with: .linearGradient(Gradient(stops: [.init(color: base, location: 0), .init(color: base, location: 0.72),
-                                                        .init(color: clear, location: 1)]),
-                                       startPoint: .zero, endPoint: CGPoint(x: 0, y: scrimH)))
-        var y = pad
-        ctx.draw(t1, in: CGRect(x: pad, y: y, width: maxW, height: h1))
-        y += h1 + gap
-        ctx.draw(t2, in: CGRect(x: pad, y: y, width: maxW, height: h2))
-        y += h2 + gap
-        ctx.draw(t3, in: CGRect(x: pad, y: y, width: maxW, height: h3))
     }
 }
