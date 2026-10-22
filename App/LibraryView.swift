@@ -19,6 +19,7 @@ struct LibraryView: View {
     #endif
     @AppStorage(Keys.pdfAsText) private var pdfAsText = false
     @AppStorage(Keys.ownCovers) private var ownCovers = false
+    @AppStorage(Keys.coverStyle) private var coverStyle = CoverStyle.sky.rawValue
     @AppStorage(Keys.shelfOrder) private var orderName = Library.Order.recent.rawValue
 
     private var order: Library.Order { Library.Order(rawValue: orderName) ?? .recent }
@@ -121,6 +122,21 @@ struct LibraryView: View {
             }
             .help(ownCovers ? "Showing the covers the books came with. Click for the sky covers."
                             : "Showing the sky covers. Click for the covers the books came with.")
+        }
+        if CoverRenderer.shared?.paintsLandscapes == true {
+            ToolbarItem(placement: .primaryAction) {
+                let landscapes = coverStyle == CoverStyle.landscape.rawValue
+                Button {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        coverStyle = (landscapes ? CoverStyle.sky : CoverStyle.landscape).rawValue
+                        if ownCovers { ownCovers = false }
+                    }
+                } label: {
+                    Label(landscapes ? "Show Night Skies" : "Show Landscapes", systemImage: landscapes ? "sparkles" : "mountain.2")
+                }
+                .help(landscapes ? "Each book has its own landscape. Click for night skies."
+                                 : "Each book has its own night sky. Click for landscapes.")
+            }
         }
         ToolbarItem(placement: .primaryAction) {
             Button { pdfAsText.toggle(); library.setAllOriginal(!pdfAsText) } label: {
@@ -502,7 +518,7 @@ struct CoverGallery: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 112, maximum: 140), spacing: 16, alignment: .top)], spacing: 18) {
                     ForEach(all, id: \.self) { i in
                         VStack(spacing: 5) {
-                            EtherealCover(title: entry.title, author: entry.author, sky: i, animated: false)
+                            EtherealCover(title: entry.title, author: entry.author, sky: i, animated: false, style: .sky)
                                 .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                                 .overlay {
                                     if i == current { RoundedRectangle(cornerRadius: 5).strokeBorder(Color.accentColor, lineWidth: 3).padding(-3) }

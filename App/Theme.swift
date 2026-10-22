@@ -27,6 +27,7 @@ enum Keys {
     static let finderCovers = "finderCovers"
     static let pdfAsText = "pdfAsText"
     static let ownCovers = "ownCovers"
+    static let coverStyle = "coverStyle"          // CoverStyle: night skies or landscapes
 }
 
 enum Theme: String, CaseIterable, Identifiable {

@@ -31,7 +31,7 @@ removing a source file, run `python3 iOS/makeproject.py`.
 
 Shared with the Mac: the reading engine, the shelf, covers, EPUB and PDF reading (original pages or reflowed text),
 search, bookmarks, highlights and notes, read aloud, statistics and the open-library search. Not there yet: the
-GPU-drawn moving sky (covers show drawn stars), comics and Word files, highlighting a selection (the top paragraph is
+GPU-drawn moving sky (covers show drawn stars) and the landscape covers, comics and Word files, highlighting a selection (the top paragraph is
 marked instead), theme colours on PDF pages, Spotlight, and syncing with the Mac.
 
 Books come in through the + button, by opening a file with Folio from another app, or by putting files in
@@ -57,6 +57,8 @@ On My iPhone › Folio in the Files app.
 - **Aurora** on the polar constellations, coloured by real emission lines (green and red oxygen, violet nitrogen) and as strong as NOAA's live planetary K-index, checked hourly.
 - **Your reading progress as an orbit**: a real planet or Halley's Comet on its true ellipse; Kepler's second law decides where you are, so equal reading sweeps equal areas.
 - **Hover a cover** and the pointer becomes a gravitational lens (the point-mass lens equation bends the stars into arcs and an Einstein ring), with a caption naming what's under it — a star's distance and the year its light left, a nebula's story, tonight's showers and planets.
+
+**Landscape covers:** the mountain button in the toolbar (or Settings › Library › Covers) swaps every night sky for a landscape, and back. Each book draws its own from its title: one of eight kinds of country — a mountain range, a lake under mountains, dunes, a pine valley, a sea of cloud with peaks standing out of it, a coast of headlands, rolling downs with woods, snow peaks — in one of fourteen moods of light, from rose dawn and golden haze to blue hour, ember dusk, moonlit silver and an arctic night under the aurora. The ridges drift slowly past at their own depths, mist wanders along the valleys, water holds the sky in its ripples, and there may be birds, falling snow, blossom or fireflies. The Moon in the night scenes is tonight's, at its real phase. Every pixel is painted on the GPU; hover a cover and the mist parts around the pointer and rings spread on the water.
 
 **Shelf:** the books you are in the middle of stand at the top, one click from where you stopped. Give books tags (right-click › Tags) to gather them into collections, and order the shelf by recency, title, author, progress or date added. Right-click › Choose Cover… picks a book's sky by hand from all 200. The chart button shows how much you have been reading: time per day, your streak, and your pace in each book.
 
@@ -108,6 +110,7 @@ App/       SwiftUI app — Book.swift wraps the C API; Sky.swift wraps the sky e
            EtherealCover.swift and CoverPainter.swift paint the still part of the covers;
            CoverScene.swift lays out what moves, and CoverMetal.swift and CoverShaders.swift
            draw it on the GPU (the shaders are compiled at launch, so there is no Metal build step);
+           Landscape.swift chooses each book's landscape, which CoverShaders.swift paints pixel by pixel;
            PDFBook.swift reflows a PDF's text (and recognises it on scans) and OriginalPages.swift shows its pages;
            Formats.swift turns Kindle, FictionBook, word-processor and comic files into something the engine reads;
            OpenLibraries.swift searches the free libraries and DiscoverView.swift is its window;

@@ -308,6 +308,7 @@ struct EtherealCover: View {
     var animated = true
 
     @AppStorage(Keys.animateCovers) private var animateCovers = true
+    @AppStorage(Keys.coverStyle) private var coverStyle = CoverStyle.sky.rawValue
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.coversResting) private var resting
     @ObservedObject private var activity = CoverActivity.shared
@@ -315,19 +316,35 @@ struct EtherealCover: View {
     @State private var hovering = false
 
     private let design: CoverDesign
+    private let fixedStyle: CoverStyle?
 
-    init(title: String, author: String, sky: Int? = nil, progress: Double = 0, bookmarks: Int = 0, animated: Bool = true) {
+    /// `style` fixes the kind of cover (the sky gallery always shows skies); otherwise it follows the setting.
+    init(title: String, author: String, sky: Int? = nil, progress: Double = 0, bookmarks: Int = 0, animated: Bool = true,
+         style: CoverStyle? = nil) {
         self.title = title
         self.author = author
         self.progress = progress
         self.bookmarks = bookmarks
         self.animated = animated
         self.design = CoverDesignCache.shared.design(title: title, author: author, sky: sky)
+        self.fixedStyle = style
+    }
+
+    /// Landscapes are painted by the GPU renderer, which only the Mac has; elsewhere covers are skies.
+    private var landscape: LandscapeDesign? {
+        #if os(macOS)
+        let style = fixedStyle ?? CoverStyle(rawValue: coverStyle) ?? .sky
+        guard style == .landscape, CoverRenderer.shared?.paintsLandscapes == true else { return nil }
+        return LandscapeCache.shared.design(title: title, author: author)
+        #else
+        return nil
+        #endif
     }
 
     var body: some View {
         let d = design
-        let p = d.palette
+        let land = landscape
+        let p = land?.palette ?? d.palette
         let moving = animated && animateCovers && !reduceMotion
         let progress = self.progress
         let bookmarks = self.bookmarks
@@ -336,21 +353,27 @@ struct EtherealCover: View {
         GeometryReader { geo in
             let w = geo.size.width, h = geo.size.height
             ZStack {
-                StaticSky(design: d).equatable()
+                if let land {
+                    Rectangle().fill(land.backdrop)                 // until the GPU's first picture arrives
+                } else {
+                    StaticSky(design: d).equatable()
+                }
 
                 #if os(macOS)
                 if CoverRenderer.shared != nil {
-                    CoverSky(design: d, progress: progress, bookmarks: bookmarks, moving: moving, awake: awake,
-                             hovering: hovering, hoverBox: box)
+                    CoverSky(design: d, landscape: land, progress: progress, bookmarks: bookmarks, moving: moving,
+                             awake: awake, hovering: hovering, hoverBox: box)
                         .allowsHitTesting(false)
                 }
                 #else
                 CoverStars(design: d, moving: moving, awake: awake).allowsHitTesting(false)
                 #endif
 
-                RadialGradient(colors: [CoverPalette.rgb(p.bottom, 0), CoverPalette.rgb(p.bottom, p.dark ? 0.55 : 0.30)],
-                               center: UnitPoint(x: 0.5, y: 0.42), startRadius: w * 0.35, endRadius: w * 1.05)
-                    .allowsHitTesting(false)
+                if land == nil {                                    // a landscape brings its own vignette
+                    RadialGradient(colors: [CoverPalette.rgb(p.bottom, 0), CoverPalette.rgb(p.bottom, p.dark ? 0.55 : 0.30)],
+                                   center: UnitPoint(x: 0.5, y: 0.42), startRadius: w * 0.35, endRadius: w * 1.05)
+                        .allowsHitTesting(false)
+                }
 
                 // A soft veil so the title reads over the sky
                 LinearGradient(stops: [
@@ -387,9 +410,9 @@ struct EtherealCover: View {
                     .allowsHitTesting(false)
                 }
 
-                // The constellation this cover shows
+                // The constellation this cover shows, or the name of the country
                 if w >= 100 {
-                    Text(d.field.name.uppercased())
+                    Text((land?.name ?? d.field.name).uppercased())
                         .font(.system(size: max(6.5, w * 0.04), weight: .medium, design: .serif))
                         .tracking(w * 0.012)
                         .lineLimit(1)
@@ -404,7 +427,7 @@ struct EtherealCover: View {
 
                 // What is under the pointer, and what the real sky is doing tonight
                 if hovering && w >= 110 {
-                    CoverCaption(design: d, box: box, moving: moving, progress: progress, awake: awake)
+                    CoverCaption(design: d, landscape: land, box: box, moving: moving, progress: progress, awake: awake)
                         .transition(.opacity)
                         .allowsHitTesting(false)
                 }
@@ -448,6 +471,7 @@ struct EtherealCover: View {
 /// compositor. (A TimelineView here kept the whole window redrawing at every frame the covers drew.)
 struct CoverCaption: View {
     let design: CoverDesign
+    let landscape: LandscapeDesign?
     let box: HoverBox
     let moving: Bool
     let progress: Double
@@ -459,6 +483,7 @@ struct CoverCaption: View {
         let width: CGFloat
         let height: CGFloat
         let awake: Bool
+        let landscape: String?
     }
 
     var body: some View {
@@ -467,11 +492,11 @@ struct CoverCaption: View {
             ZStack(alignment: .top) {
                 Color.clear
                 if let shown = lines ?? words(size) {
-                    CaptionCard(lines: shown, palette: design.palette, width: size.width)
+                    CaptionCard(lines: shown, palette: landscape?.palette ?? design.palette, width: size.width)
                         .equatable()
                 }
             }
-            .task(id: Key(width: size.width, height: size.height, awake: awake)) {
+            .task(id: Key(width: size.width, height: size.height, awake: awake, landscape: landscape?.name)) {
                 repeat {
                     if let next = words(size), lines.map({ $0 != next }) ?? true { lines = next }
                     guard awake else { break }
@@ -483,6 +508,7 @@ struct CoverCaption: View {
 
     private func words(_ size: CGSize) -> (String, String, String)? {
         guard let point = box.point else { return nil }
+        if let landscape { return landscape.captionLines(at: point, visits: box.visits, sky: SkyNow.current) }
         let now = Date().timeIntervalSince(CoverClock.start)
         return design.captionLines(size: size, at: point, visits: box.visits, t: moving ? now : 0,
                                    sky: SkyNow.current, kp: SpaceWeather.shared.kp, progress: progress)

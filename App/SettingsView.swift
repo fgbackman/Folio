@@ -14,6 +14,7 @@ struct ReadingSettings: View {
     @AppStorage(Keys.floatOnTop) private var floatOnTop = true
     @AppStorage(Keys.floatTheme) private var floatThemeName = ""
     @AppStorage(Keys.animateCovers) private var animateCovers = true
+    @AppStorage(Keys.coverStyle) private var coverStyle = CoverStyle.sky.rawValue
     @AppStorage(Keys.liveSpaceWeather) private var liveSpaceWeather = true
     @AppStorage(Keys.pagedTurns) private var pagedTurns = false
     @AppStorage(Keys.tintPages) private var tintPages = true
@@ -82,8 +83,18 @@ struct ReadingSettings: View {
                     Toggle("Give downloaded books their cover in the Finder", isOn: $finderCovers)
                 }
                 Section("Library") {
+                    #if os(macOS)
+                    if CoverRenderer.shared?.paintsLandscapes == true {
+                        Picker("Covers", selection: $coverStyle) {
+                            ForEach(CoverStyle.allCases) { Text($0.name).tag($0.rawValue) }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    #endif
                     Toggle("Animate covers", isOn: $animateCovers)
-                    Text("Each cover is a real constellation with tonight's Moon, planets and meteor showers, and replays of real eclipses, comets and supernovae. Hover a cover to learn what you're seeing. Covers stay still when Reduce Motion is on.")
+                    Text(coverStyle == CoverStyle.landscape.rawValue
+                         ? "Each book has its own landscape — mountains, a lake, dunes, pines, a sea of cloud, a coast, downs or snow peaks — in its own light, drifting slowly past. The Moon in the night scenes is tonight's. Hover a cover to part the mist. Covers stay still when Reduce Motion is on."
+                         : "Each cover is a real constellation with tonight's Moon, planets and meteor showers, and replays of real eclipses, comets and supernovae. Hover a cover to learn what you're seeing. Covers stay still when Reduce Motion is on.")
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle("Live space weather (NOAA)", isOn: $liveSpaceWeather)
                         .onChange(of: liveSpaceWeather) { _, on in if on { SpaceWeather.shared.refresh() } }

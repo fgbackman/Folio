@@ -30,6 +30,7 @@
 		D54C84765AEE6B4AF5DF6798 /* FloatingBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2304A255D751A4265CF0DF5A /* FloatingBook.swift */; };
 		77F7A461F891DC9A270AA8FB /* FolioApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A6C5F0D62444E6A19AC8FC /* FolioApp.swift */; };
 		E901B1D24CEE59314EB04E27 /* Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29708C773ED4B3A59C08F4D1 /* Library.swift */; };
+		675BC3C9F08E57F8A31FDBAD /* Landscape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9376187DD524BC52CD81360A /* Landscape.swift */; };
 		C99A25089100598DFADF8996 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B7E55A32B204BAC74FFBCD /* LibraryView.swift */; };
 		8731729D0AF65BAA18357437 /* ReaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC3180B04382DB72E0EE5A64 /* ReaderModel.swift */; };
 		9206C78F7DB009B2FEC6DE80 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95489970A975141CB513ABD6 /* ReaderView.swift */; };
@@ -74,6 +75,7 @@
 		0C7812EBB5D03E97067B3343 /* Folio-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Folio-Bridging-Header.h"; sourceTree = "<group>"; };
 		66A6C5F0D62444E6A19AC8FC /* FolioApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolioApp.swift; sourceTree = "<group>"; };
 		29708C773ED4B3A59C08F4D1 /* Library.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Library.swift; sourceTree = "<group>"; };
+		9376187DD524BC52CD81360A /* Landscape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Landscape.swift; sourceTree = "<group>"; };
 		56B7E55A32B204BAC74FFBCD /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		AC3180B04382DB72E0EE5A64 /* ReaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderModel.swift; sourceTree = "<group>"; };
 		95489970A975141CB513ABD6 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
@@ -151,6 +153,7 @@
 				0C7812EBB5D03E97067B3343 /* Folio-Bridging-Header.h */,
 				66A6C5F0D62444E6A19AC8FC /* FolioApp.swift */,
 				29708C773ED4B3A59C08F4D1 /* Library.swift */,
+				9376187DD524BC52CD81360A /* Landscape.swift */,
 				56B7E55A32B204BAC74FFBCD /* LibraryView.swift */,
 				AC3180B04382DB72E0EE5A64 /* ReaderModel.swift */,
 				95489970A975141CB513ABD6 /* ReaderView.swift */,
@@ -291,6 +294,7 @@
 				D54C84765AEE6B4AF5DF6798 /* FloatingBook.swift in Sources */,
 				77F7A461F891DC9A270AA8FB /* FolioApp.swift in Sources */,
 				E901B1D24CEE59314EB04E27 /* Library.swift in Sources */,
+				675BC3C9F08E57F8A31FDBAD /* Landscape.swift in Sources */,
 				C99A25089100598DFADF8996 /* LibraryView.swift in Sources */,
 				8731729D0AF65BAA18357437 /* ReaderModel.swift in Sources */,
 				9206C78F7DB009B2FEC6DE80 /* ReaderView.swift in Sources */,

@@ -24,6 +24,7 @@ final class CoverRenderer {
     let device: MTLDevice
     let queue: MTLCommandQueue
     private var pipelines: [MTLRenderPipelineState] = []
+    private var landscapePipeline: MTLRenderPipelineState?
     private var starBuffers: [Int: (buffer: MTLBuffer, count: Int)] = [:]
     private let views = NSHashTable<CoverSkyView>.weakObjects()
     private var link: CADisplayLink?
@@ -79,7 +80,27 @@ final class CoverRenderer {
                 pipelines.append(state)         // in the order pipeline(_:_:) reads them
             }
         }
+        // the landscapes, from a library of their own; without them the covers stay skies
+        do {
+            let lib = try device.makeLibrary(source: CoverShaders.landscapeSource, options: nil)
+            let desc = MTLRenderPipelineDescriptor()
+            desc.vertexFunction = lib.makeFunction(name: "landscape_vertex")
+            desc.fragmentFunction = lib.makeFunction(name: "landscape_fragment")
+            desc.colorAttachments[0].pixelFormat = .bgra8Unorm
+            landscapePipeline = try device.makeRenderPipelineState(descriptor: desc)
+        } catch {
+            NSLog("Folio: the landscape shaders didn't compile: %@", String(describing: error))
+            CoverPerf.note("landscape shaders: \(error)")
+            // on the Mac Folio is built on, keep the compiler's complaint where it can be read
+            if FileManager.default.fileExists(atPath: CoverPerf.folder.path) {
+                try? "\(Date())\n\(error)\n".write(to: CoverPerf.folder.appendingPathComponent("landscape-shader-error.txt"),
+                                                   atomically: true, encoding: .utf8)
+            }
+        }
     }
+
+    /// Whether this Mac can paint the landscape covers.
+    var paintsLandscapes: Bool { landscapePipeline != nil }
 
     private func pipeline(_ shader: Shader, _ blend: CoverBlend) -> MTLRenderPipelineState {
         pipelines[shader.rawValue * 2 + (blend == .screen ? 1 : 0)]
@@ -238,6 +259,14 @@ final class CoverRenderer {
             encoder.setViewport(MTLViewport(originX: Double(cell.x), originY: Double(cell.y), width: Double(cell.width),
                                             height: Double(cell.height), znear: 0, zfar: 1))
             encoder.setScissorRect(MTLScissorRect(x: cell.x, y: cell.y, width: cell.width, height: cell.height))
+            if let land = view.landscape, let landscapePipeline {
+                paint(land, view: view, size: cell.size, scale: cell.scale, now: now, sky: sky, encoder: encoder,
+                      pipeline: landscapePipeline)
+                bound.pipeline = landscapePipeline
+                CoverPerf.covers += 1
+                view.drew(now, fast: false)
+                continue
+            }
             let perfCompose = CoverPerf.now()
             cell.design.compose(into: scene, size: cell.size, scale: cell.scale, t: view.moving ? now : 0, sky: sky, kp: kp,
                                 progress: view.progress, bookmarks: view.bookmarks, hover: view.hoverBox?.info(now))
@@ -265,9 +294,11 @@ final class CoverRenderer {
         // once the GPU has finished, give every cover its new picture in one go
         busy = true
         let finished = cells.map { (view: $0.view, surface: $0.target.surface) }
-        commands.addCompletedHandler { [weak self] _ in
+        commands.addCompletedHandler { [weak self] done in
+            let gpu = done.gpuEndTime - done.gpuStartTime
             DispatchQueue.main.async {
                 guard let self else { return }
+                CoverPerf.gpu += gpu
                 let perfShow = CoverPerf.now()
                 self.busy = false
                 CATransaction.begin()
@@ -281,6 +312,28 @@ final class CoverRenderer {
         commands.commit()
         CoverPerf.commit += CoverPerf.now() - perfCommit
         CoverPerf.frames += 1
+    }
+
+    /// A landscape cover: one quad, every pixel painted by the shader from the design's numbers and this frame's
+    /// time, pointer and Moon.
+    private func paint(_ land: LandscapeDesign, view: CoverSkyView, size: CGSize, scale: Double, now: Double, sky: SkyNow,
+                       encoder: MTLRenderCommandEncoder, pipeline: MTLRenderPipelineState) {
+        var u = land.params
+        let t = (view.moving ? now : 0) + land.timeOffset
+        let hover = view.hoverBox?.info(now)
+        u[1].w = Float(sky.moonIllum)
+        u[22] = SIMD4(Float(hover?.point.x ?? 0.5), Float(hover?.point.y ?? 0.5), Float(hover?.strength ?? 0),
+                      Float(t.truncatingRemainder(dividingBy: 4096) / 4096))
+        u[23].x = Float(1 / max(1, Double(size.width) * scale))
+        u[23].w = sky.waxing ? 1 : -1
+        u.append(SIMD4(Float(size.width), Float(size.height), Float(scale), 0))
+        encoder.setRenderPipelineState(pipeline)
+        u.withUnsafeBytes { raw in
+            guard let base = raw.baseAddress else { return }
+            encoder.setVertexBytes(base, length: raw.count, index: 1)
+            encoder.setFragmentBytes(base, length: raw.count, index: 1)
+        }
+        encoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
     }
 
     private func allocate(_ arena: Arena, _ bytes: Int) -> (MTLBuffer, Int)? {
@@ -398,6 +451,7 @@ final class CoverRenderer {
 /// The view a cover's moving sky is shown in. It sits over the painted sky and lets clicks through.
 final class CoverSkyView: NSView {
     var design: CoverDesign?
+    var landscape: LandscapeDesign?     // painted instead of the sky when set
     var progress = 0.0
     var bookmarks = 0
     var moving = false          // the sky animates
@@ -568,6 +622,7 @@ final class CoverSkyView: NSView {
 
 struct CoverSky: NSViewRepresentable {
     let design: CoverDesign
+    let landscape: LandscapeDesign?
     let progress: Double
     let bookmarks: Int
     let moving: Bool
@@ -579,6 +634,7 @@ struct CoverSky: NSViewRepresentable {
 
     func updateNSView(_ view: CoverSkyView, context: Context) {
         view.design = design
+        view.landscape = landscape
         view.progress = progress
         view.bookmarks = bookmarks
         view.moving = moving
@@ -597,6 +653,7 @@ enum CoverPerf {
     static let names = ["setup", "sky", "orbs", "aurora", "deepsky", "lens", "trails", "figure", "planets", "flare",
                         "comet", "moon", "meteors", "orrery", "ring", "x"]
     static var compose: UInt64 = 0, encode: UInt64 = 0, tick: UInt64 = 0, show: UInt64 = 0, drawTotal: UInt64 = 0, commit: UInt64 = 0
+    static var gpu = 0.0                // seconds the GPU spent on the covers
     static var ticks = 0, covers = 0, prims = 0, verts = 0, batches = 0, frames = 0
     static var windowStart: UInt64 = 0, cpuStart: UInt64 = 0, mainStart: UInt64 = 0
     @inline(__always) static func now() -> UInt64 { clock_gettime_nsec_np(CLOCK_UPTIME_RAW) }
@@ -613,6 +670,12 @@ enum CoverPerf {
         } else {
             try? data.write(to: url)
         }
+    }
+
+    /// A line in the log, if the meter is on.
+    static func note(_ text: String) {
+        guard enabled else { return }
+        append("\(Date()) \(text)\n")
     }
 
     static func report() {
@@ -633,7 +696,7 @@ enum CoverPerf {
         func pct(_ v: UInt64) -> String { String(format: "%.1f", Double(v) / span * 100) }
         let c = max(1, covers)
         var line = "\(Date()) \(Bundle.main.bundlePath) force=\(force) span=\(String(format: "%.1f", span / 1e9))s"
-        line += " cpu=\(pct(cpu &- cpuStart)) main=\(pct(main &- mainStart))"
+        line += " cpu=\(pct(cpu &- cpuStart)) main=\(pct(main &- mainStart)) gpu=\(String(format: "%.1f", gpu * 1e9 / span * 100))"
         line += " tick=\(pct(tick)) draw=\(pct(drawTotal)) compose=\(pct(compose)) encode=\(pct(encode)) commit=\(pct(commit)) show=\(pct(show))"
         line += " ticks=\(ticks) frames=\(frames) covers=\(covers) perFrame=\(String(format: "%.1f", Double(covers) / Double(max(1, frames))))"
         line += " prims=\(prims / c) verts=\(verts / c) batches=\(batches / c) |"
@@ -646,7 +709,7 @@ enum CoverPerf {
         cpuStart = cpu
         mainStart = main
         sections = [UInt64](repeating: 0, count: 16)
-        compose = 0; encode = 0; tick = 0; show = 0; drawTotal = 0; commit = 0
+        compose = 0; encode = 0; tick = 0; show = 0; drawTotal = 0; commit = 0; gpu = 0
         ticks = 0; covers = 0; prims = 0; verts = 0; batches = 0; frames = 0
     }
 }
